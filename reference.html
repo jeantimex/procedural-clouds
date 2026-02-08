@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Procedural Clouds — WebGPU</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;600&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #000;
+    color: #e0e0e0;
+    font-family: 'Instrument Sans', sans-serif;
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+  }
+
+  canvas {
+    display: block;
+    width: 100vw;
+    height: 100vh;
+  }
+
+  #controls {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: rgba(10, 10, 15, 0.85);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 14px;
+    padding: 20px 24px;
+    width: 280px;
+    z-index: 10;
+    transition: opacity 0.3s;
+  }
+
+  #controls h2 {
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.5);
+    margin-bottom: 16px;
+  }
+
+  .ctrl-group {
+    margin-bottom: 14px;
+  }
+
+  .ctrl-group label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: rgba(255,255,255,0.65);
+    margin-bottom: 5px;
+  }
+
+  .ctrl-group label span {
+    color: rgba(255,255,255,0.35);
+    font-variant-numeric: tabular-nums;
+  }
+
+  input[type="range"] {
+    -webkit-appearance: none;
+    width: 100%;
+    height: 4px;
+    border-radius: 2px;
+    background: rgba(255,255,255,0.1);
+    outline: none;
+  }
+
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #7eb8da;
+    cursor: pointer;
+    border: 2px solid rgba(0,0,0,0.3);
+  }
+
+  #info {
+    position: fixed;
+    bottom: 20px;
+    left: 20px;
+    font-size: 11px;
+    color: rgba(255,255,255,0.25);
+    letter-spacing: 0.04em;
+  }
+
+  #error {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(180,40,40,0.9);
+    color: white;
+    padding: 30px 40px;
+    border-radius: 12px;
+    font-size: 15px;
+    text-align: center;
+    display: none;
+    max-width: 500px;
+  }
+</style>
+</head>
+<body>
+
+<canvas id="canvas"></canvas>
+
+<div id="controls">
+  <h2>Cloud Parameters</h2>
+
+  <div class="ctrl-group">
+    <label>Density <span id="v-density">1.0</span></label>
+    <input type="range" id="density" min="0.1" max="4.0" step="0.05" value="1.0">
+  </div>
+  <div class="ctrl-group">
+    <label>Coverage <span id="v-coverage">0.5</span></label>
+    <input type="range" id="coverage" min="0.0" max="1.0" step="0.01" value="0.5">
+  </div>
+  <div class="ctrl-group">
+    <label>Scale <span id="v-scale">1.0</span></label>
+    <input type="range" id="scale" min="0.2" max="4.0" step="0.05" value="1.0">
+  </div>
+  <div class="ctrl-group">
+    <label>Detail <span id="v-detail">5.0</span></label>
+    <input type="range" id="detail" min="0.0" max="15.0" step="0.5" value="5.0">
+  </div>
+  <div class="ctrl-group">
+    <label>Absorption <span id="v-absorption">0.8</span></label>
+    <input type="range" id="absorption" min="0.0" max="2.0" step="0.05" value="0.8">
+  </div>
+  <div class="ctrl-group">
+    <label>Light Intensity <span id="v-lightIntensity">2.0</span></label>
+    <input type="range" id="lightIntensity" min="0.1" max="5.0" step="0.1" value="2.0">
+  </div>
+  <div class="ctrl-group">
+    <label>Wind Speed <span id="v-windSpeed">0.3</span></label>
+    <input type="range" id="windSpeed" min="0.0" max="2.0" step="0.05" value="0.3">
+  </div>
+</div>
+
+<div id="info">Drag to orbit · Scroll to zoom · WebGPU Procedural Clouds</div>
+<div id="error" role="alert"></div>
+
+<script>
+// ─── Hash & Noise (WGSL) ────────────────────────────────────────
+const noiseWGSL = /* wgsl */`
+// ── Hashing ──
+fn hash3(p: vec3f) -> vec3f {
+  var q = vec3f(
+    dot(p, vec3f(127.1, 311.7, 74.7)),
+    dot(p, vec3f(269.5, 183.3, 246.1)),
+    dot(p, vec3f(113.5, 271.9, 124.6))
+  );
+  return fract(sin(q) * 43758.5453123);
+}
+
+fn hash1(p: vec3f) -> f32 {
+  return fract(sin(dot(p, vec3f(127.1, 311.7, 74.7))) * 43758.5453123);
+}
+
+// ── Value noise ──
+fn valueNoise(p: vec3f) -> f32 {
+  let i = floor(p);
+  let f = fract(p);
+  let u = f * f * (3.0 - 2.0 * f);
+
+  return mix(
+    mix(
+      mix(hash1(i + vec3f(0,0,0)), hash1(i + vec3f(1,0,0)), u.x),
+      mix(hash1(i + vec3f(0,1,0)), hash1(i + vec3f(1,1,0)), u.x),
+      u.y
+    ),
+    mix(
+      mix(hash1(i + vec3f(0,0,1)), hash1(i + vec3f(1,0,1)), u.x),
+      mix(hash1(i + vec3f(0,1,1)), hash1(i + vec3f(1,1,1)), u.x),
+      u.y
+    ),
+    u.z
+  );
+}
+
+// ── FBM Noise (Blender-style Noise Texture) ──
+fn fbmNoise(pos: vec3f, detail: f32, roughness: f32) -> f32 {
+  var p = pos;
+  var value: f32 = 0.0;
+  var amplitude: f32 = 1.0;
+  var freq: f32 = 1.0;
+  var totalAmp: f32 = 0.0;
+  let octaves = i32(clamp(detail, 0.0, 15.0)) + 1;
+
+  for (var i = 0; i < octaves; i++) {
+    value += amplitude * valueNoise(p * freq);
+    totalAmp += amplitude;
+    amplitude *= roughness;
+    freq *= 2.0;
+  }
+  return value / totalAmp;
+}
+
+// ── Voronoi (F1 distance, Blender-style) ──
+fn voronoiF1(p: vec3f) -> f32 {
+  let i = floor(p);
+  let f = fract(p);
+  var minDist: f32 = 1e10;
+
+  for (var z: i32 = -1; z <= 1; z++) {
+    for (var y: i32 = -1; y <= 1; y++) {
+      for (var x: i32 = -1; x <= 1; x++) {
+        let neighbor = vec3f(f32(x), f32(y), f32(z));
+        let point = hash3(i + neighbor);
+        let diff = neighbor + point - f;
+        let dist = dot(diff, diff);
+        minDist = min(minDist, dist);
+      }
+    }
+  }
+  return sqrt(minDist);
+}
+
+// ── Voronoi smooth (for cloud wisp shapes) ──
+fn voronoiSmooth(p: vec3f, smoothness: f32) -> f32 {
+  let i = floor(p);
+  let f = fract(p);
+  var res: f32 = 100.0;
+
+  for (var z: i32 = -1; z <= 1; z++) {
+    for (var y: i32 = -1; y <= 1; y++) {
+      for (var x: i32 = -1; x <= 1; x++) {
+        let neighbor = vec3f(f32(x), f32(y), f32(z));
+        let point = hash3(i + neighbor);
+        let diff = neighbor + point - f;
+        let dist = dot(diff, diff);
+        res = min(res, dist);
+      }
+    }
+  }
+  return sqrt(res);
+}
+`;
+
+// ─── Ray March Cloud Shader (Fragment) ──────────────────────────
+const cloudShaderWGSL = /* wgsl */`
+${noiseWGSL}
+
+struct Uniforms {
+  viewProjectionInv: mat4x4f,
+  cameraPos: vec4f,
+  lightDir: vec4f,
+  params: vec4f,     // density, coverage, scale, detail
+  params2: vec4f,    // absorption, lightIntensity, windSpeed, time
+  resolution: vec2f,
+  _pad: vec2f,
+};
+
+@group(0) @binding(0) var<uniform> u: Uniforms;
+
+struct VertexOutput {
+  @builtin(position) pos: vec4f,
+  @location(0) uv: vec2f,
+};
+
+@vertex
+fn vs(@builtin(vertex_index) vi: u32) -> VertexOutput {
+  // Fullscreen triangle
+  var pos = array<vec2f, 3>(
+    vec2f(-1.0, -1.0),
+    vec2f( 3.0, -1.0),
+    vec2f(-1.0,  3.0)
+  );
+  var out: VertexOutput;
+  out.pos = vec4f(pos[vi], 0.0, 1.0);
+  out.uv = pos[vi] * 0.5 + 0.5;
+  return out;
+}
+
+// ── Cloud density function (ported from Blender node graph) ──
+// Blender setup: Voronoi + Noise + Math nodes → Principled Volume density
+fn cloudDensity(pos: vec3f) -> f32 {
+  let scale = u.params.z;
+  let detail = u.params.w;
+  let coverage = u.params.y;
+  let windSpeed = u.params2.z;
+  let time = u.params2.w;
+
+  // Animate with wind
+  let wind = vec3f(time * windSpeed * 0.4, 0.0, time * windSpeed * 0.15);
+  let p = pos * scale + wind;
+
+  // Layer 1: Large-scale Voronoi (cloud shape) — maps to Voronoi Texture.003
+  let voronoi1 = voronoiF1(p * 0.8);
+
+  // Layer 2: Medium Voronoi detail — maps to Voronoi Texture.004
+  let voronoi2 = voronoiF1(p * 2.2 + vec3f(31.7, 17.3, 5.9));
+
+  // Combine voronoi layers (Map Range nodes + Math multiply/add)
+  let largeShape = smoothstep(0.3, 0.9, 1.0 - voronoi1);
+  let medDetail = smoothstep(0.2, 0.7, 1.0 - voronoi2) * 0.4;
+
+  // Layer 3: FBM noise for fine detail — maps to Noise Texture node
+  let noiseVal = fbmNoise(p * 3.0 + vec3f(7.3, 13.1, 2.7), detail, 0.5);
+
+  // Separate Y for height-based density falloff (SeparateXYZ nodes)
+  let heightFade = 1.0 - smoothstep(-0.3, 0.5, pos.y);
+  let bottomFade = smoothstep(-0.6, -0.3, pos.y);
+
+  // Combine all layers (Math nodes chain: multiply, add, map range)
+  var density = largeShape + medDetail;
+  density = density * (0.5 + 0.5 * noiseVal);  // Modulate with noise
+  density = density * heightFade * bottomFade;
+
+  // Coverage threshold (Map Range → density control)
+  density = smoothstep(1.0 - coverage, 1.0 - coverage + 0.3, density);
+
+  return max(density, 0.0);
+}
+
+// ── Box intersection (AABB for the cloud volume domain — Cube object) ──
+fn boxIntersect(ro: vec3f, rd: vec3f, boxMin: vec3f, boxMax: vec3f) -> vec2f {
+  let invRd = 1.0 / rd;
+  let t1 = (boxMin - ro) * invRd;
+  let t2 = (boxMax - ro) * invRd;
+  let tmin = min(t1, t2);
+  let tmax = max(t1, t2);
+  let tNear = max(max(tmin.x, tmin.y), tmin.z);
+  let tFar  = min(min(tmax.x, tmax.y), tmax.z);
+  return vec2f(max(tNear, 0.0), tFar);
+}
+
+// ── Light march toward sun for shadow/scattering ──
+fn lightMarch(pos: vec3f) -> f32 {
+  let lightDir = normalize(u.lightDir.xyz);
+  let absorption = u.params2.x;
+  let steps = 6;
+  let stepSize = 0.15;
+  var transmittance: f32 = 1.0;
+
+  for (var i = 0; i < steps; i++) {
+    let samplePos = pos + lightDir * (f32(i) + 0.5) * stepSize;
+    let d = cloudDensity(samplePos);
+    transmittance *= exp(-d * absorption * stepSize * 2.0);
+    if (transmittance < 0.01) { break; }
+  }
+  return transmittance;
+}
+
+@fragment
+fn fs(in: VertexOutput) -> @location(0) vec4f {
+  let uv = vec2f(in.uv.x, 1.0 - in.uv.y);
+  let ndc = vec4f(uv * 2.0 - 1.0, 1.0, 1.0);
+  let worldPos4 = u.viewProjectionInv * ndc;
+  let worldPos = worldPos4.xyz / worldPos4.w;
+  let ro = u.cameraPos.xyz;
+  let rd = normalize(worldPos - ro);
+
+  // Cloud bounding box (Blender Cube object scaled)
+  let boxMin = vec3f(-2.0, -0.7, -2.0);
+  let boxMax = vec3f( 2.0,  0.8,  2.0);
+
+  let hit = boxIntersect(ro, rd, boxMin, boxMax);
+
+  // Sky gradient (Blender World: Background node)
+  let skyUp = vec3f(0.25, 0.42, 0.72);
+  let skyHorizon = vec3f(0.65, 0.78, 0.92);
+  let skyDown = vec3f(0.42, 0.52, 0.62);
+  let t_sky = rd.y * 0.5 + 0.5;
+  var sky = mix(skyHorizon, skyUp, smoothstep(0.0, 0.6, t_sky));
+  sky = mix(skyDown, sky, smoothstep(-0.2, 0.1, rd.y));
+
+  // Sun glow
+  let sunDir = normalize(u.lightDir.xyz);
+  let sunDot = max(dot(rd, sunDir), 0.0);
+  let sunGlow = pow(sunDot, 64.0) * 0.8 + pow(sunDot, 512.0) * 1.5;
+  sky += vec3f(1.0, 0.95, 0.85) * sunGlow;
+
+  if (hit.x >= hit.y) {
+    return vec4f(sky, 1.0);
+  }
+
+  // ── Ray march through cloud volume ──
+  let density = u.params.x;
+  let absorption = u.params2.x;
+  let lightIntensity = u.params2.y;
+  let maxSteps = 80;
+  let totalDist = hit.y - hit.x;
+  let stepSize = totalDist / f32(maxSteps);
+
+  var transmittance: f32 = 1.0;
+  var lightEnergy: f32 = 0.0;
+  var scatteredLight = vec3f(0.0);
+
+  // Cloud color palette
+  let cloudBright = vec3f(1.0, 0.98, 0.95);
+  let cloudShadow = vec3f(0.35, 0.4, 0.55);
+  let cloudAmbient = vec3f(0.55, 0.62, 0.78) * 0.3;
+
+  // Dithered start to reduce banding
+  let dither = fract(sin(dot(in.pos.xy, vec2f(12.9898, 78.233))) * 43758.5453);
+
+  for (var i = 0; i < maxSteps; i++) {
+    let t = hit.x + (f32(i) + dither) * stepSize;
+    if (t > hit.y) { break; }
+
+    let samplePos = ro + rd * t;
+    let d = cloudDensity(samplePos) * density;
+
+    if (d > 0.001) {
+      // Light transmittance toward sun
+      let lightT = lightMarch(samplePos);
+
+      // Henyey-Greenstein phase function (anisotropy from Principled Volume)
+      let cosTheta = dot(rd, sunDir);
+      let g = 0.35;
+      let phase = (1.0 - g * g) / (4.0 * 3.14159 * pow(1.0 + g * g - 2.0 * g * cosTheta, 1.5));
+
+      // Scattering
+      let directLight = lightT * lightIntensity * phase;
+      let ambient = cloudAmbient;
+      let lightColor = mix(cloudShadow, cloudBright, lightT);
+
+      scatteredLight += transmittance * d * stepSize * (lightColor * directLight + ambient);
+      transmittance *= exp(-d * absorption * stepSize);
+
+      if (transmittance < 0.01) { break; }
+    }
+  }
+
+  var color = sky * transmittance + scatteredLight;
+
+  // Tone mapping
+  color = color / (color + vec3f(1.0));
+  color = pow(color, vec3f(1.0 / 2.2));
+
+  return vec4f(color, 1.0);
+}
+`;
+
+// ─── Main Application ───────────────────────────────────────────
+async function main() {
+  const canvas = document.getElementById('canvas');
+  const errorEl = document.getElementById('error');
+
+  if (!navigator.gpu) {
+    errorEl.style.display = 'block';
+    errorEl.textContent = 'WebGPU is not supported in your browser. Please use Chrome 113+ or Edge 113+.';
+    return;
+  }
+
+  const adapter = await navigator.gpu.requestAdapter();
+  if (!adapter) {
+    errorEl.style.display = 'block';
+    errorEl.textContent = 'Failed to get WebGPU adapter.';
+    return;
+  }
+
+  const device = await adapter.requestDevice();
+  const ctx = canvas.getContext('webgpu');
+  const format = navigator.gpu.getPreferredCanvasFormat();
+  ctx.configure({ device, format, alphaMode: 'opaque' });
+
+  // ── Pipeline ──
+  const shaderModule = device.createShaderModule({ code: cloudShaderWGSL });
+
+  const pipeline = device.createRenderPipeline({
+    layout: 'auto',
+    vertex: { module: shaderModule, entryPoint: 'vs' },
+    fragment: {
+      module: shaderModule,
+      entryPoint: 'fs',
+      targets: [{ format }]
+    },
+    primitive: { topology: 'triangle-list' }
+  });
+
+  // ── Uniforms ──
+  const uniformBufferSize = 160; // aligned
+  const uniformBuffer = device.createBuffer({
+    size: uniformBufferSize,
+    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
+  });
+
+  const bindGroup = device.createBindGroup({
+    layout: pipeline.getBindGroupLayout(0),
+    entries: [{ binding: 0, resource: { buffer: uniformBuffer } }]
+  });
+
+  // ── Camera ──
+  let camTheta = 0.3;
+  let camPhi = 0.35;
+  let camDist = 5.5;
+  let isDragging = false;
+  let lastMouse = [0, 0];
+
+  canvas.addEventListener('pointerdown', e => {
+    isDragging = true;
+    lastMouse = [e.clientX, e.clientY];
+    canvas.setPointerCapture(e.pointerId);
+  });
+  canvas.addEventListener('pointermove', e => {
+    if (!isDragging) return;
+    const dx = e.clientX - lastMouse[0];
+    const dy = e.clientY - lastMouse[1];
+    camTheta -= dx * 0.005;
+    camPhi = Math.max(-0.2, Math.min(1.2, camPhi + dy * 0.005));
+    lastMouse = [e.clientX, e.clientY];
+  });
+  canvas.addEventListener('pointerup', e => {
+    isDragging = false;
+    canvas.releasePointerCapture(e.pointerId);
+  });
+  canvas.addEventListener('wheel', e => {
+    camDist = Math.max(2.0, Math.min(15.0, camDist + e.deltaY * 0.005));
+    e.preventDefault();
+  }, { passive: false });
+
+  // ── Slider bindings ──
+  const sliders = {};
+  for (const id of ['density', 'coverage', 'scale', 'detail', 'absorption', 'lightIntensity', 'windSpeed']) {
+    const el = document.getElementById(id);
+    const valEl = document.getElementById('v-' + id);
+    sliders[id] = { el, valEl };
+    el.addEventListener('input', () => { valEl.textContent = parseFloat(el.value).toFixed(2); });
+  }
+
+  function getParam(id) { return parseFloat(sliders[id].el.value); }
+
+  // ── Matrix helpers ──
+  function mat4Perspective(fov, aspect, near, far) {
+    const f = 1.0 / Math.tan(fov / 2);
+    const nf = 1 / (near - far);
+    return new Float32Array([
+      f / aspect, 0, 0, 0,
+      0, f, 0, 0,
+      0, 0, (far + near) * nf, -1,
+      0, 0, 2 * far * near * nf, 0
+    ]);
+  }
+
+  function mat4LookAt(eye, center, up) {
+    const z = normalize3(sub3(eye, center));
+    const x = normalize3(cross3(up, z));
+    const y = cross3(z, x);
+    return new Float32Array([
+      x[0], y[0], z[0], 0,
+      x[1], y[1], z[1], 0,
+      x[2], y[2], z[2], 0,
+      -dot3(x, eye), -dot3(y, eye), -dot3(z, eye), 1
+    ]);
+  }
+
+  function sub3(a, b) { return [a[0]-b[0], a[1]-b[1], a[2]-b[2]]; }
+  function dot3(a, b) { return a[0]*b[0]+a[1]*b[1]+a[2]*b[2]; }
+  function cross3(a, b) { return [a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2], a[0]*b[1]-a[1]*b[0]]; }
+  function normalize3(v) { const l = Math.sqrt(dot3(v,v)); return [v[0]/l, v[1]/l, v[2]/l]; }
+
+  function mat4Multiply(a, b) {
+    const r = new Float32Array(16);
+    for (let i = 0; i < 4; i++)
+      for (let j = 0; j < 4; j++)
+        r[j*4+i] = a[i]*b[j*4] + a[4+i]*b[j*4+1] + a[8+i]*b[j*4+2] + a[12+i]*b[j*4+3];
+    return r;
+  }
+
+  function mat4Inverse(m) {
+    const inv = new Float32Array(16);
+    inv[0]  =  m[5]*m[10]*m[15] - m[5]*m[11]*m[14] - m[9]*m[6]*m[15] + m[9]*m[7]*m[14] + m[13]*m[6]*m[11] - m[13]*m[7]*m[10];
+    inv[4]  = -m[4]*m[10]*m[15] + m[4]*m[11]*m[14] + m[8]*m[6]*m[15] - m[8]*m[7]*m[14] - m[12]*m[6]*m[11] + m[12]*m[7]*m[10];
+    inv[8]  =  m[4]*m[9]*m[15]  - m[4]*m[11]*m[13] - m[8]*m[5]*m[15] + m[8]*m[7]*m[13] + m[12]*m[5]*m[11] - m[12]*m[7]*m[9];
+    inv[12] = -m[4]*m[9]*m[14]  + m[4]*m[10]*m[13] + m[8]*m[5]*m[14] - m[8]*m[6]*m[13] - m[12]*m[5]*m[10] + m[12]*m[6]*m[9];
+    inv[1]  = -m[1]*m[10]*m[15] + m[1]*m[11]*m[14] + m[9]*m[2]*m[15] - m[9]*m[3]*m[14] - m[13]*m[2]*m[11] + m[13]*m[3]*m[10];
+    inv[5]  =  m[0]*m[10]*m[15] - m[0]*m[11]*m[14] - m[8]*m[2]*m[15] + m[8]*m[3]*m[14] + m[12]*m[2]*m[11] - m[12]*m[3]*m[10];
+    inv[9]  = -m[0]*m[9]*m[15]  + m[0]*m[11]*m[13] + m[8]*m[1]*m[15] - m[8]*m[3]*m[13] - m[12]*m[1]*m[11] + m[12]*m[3]*m[9];
+    inv[13] =  m[0]*m[9]*m[14]  - m[0]*m[10]*m[13] - m[8]*m[1]*m[14] + m[8]*m[2]*m[13] + m[12]*m[1]*m[10] - m[12]*m[2]*m[9];
+    inv[2]  =  m[1]*m[6]*m[15]  - m[1]*m[7]*m[14]  - m[5]*m[2]*m[15] + m[5]*m[3]*m[14] + m[13]*m[2]*m[7]  - m[13]*m[3]*m[6];
+    inv[6]  = -m[0]*m[6]*m[15]  + m[0]*m[7]*m[14]  + m[4]*m[2]*m[15] - m[4]*m[3]*m[14] - m[12]*m[2]*m[7]  + m[12]*m[3]*m[6];
+    inv[10] =  m[0]*m[5]*m[15]  - m[0]*m[7]*m[13]  - m[4]*m[1]*m[15] + m[4]*m[3]*m[13] + m[12]*m[1]*m[7]  - m[12]*m[3]*m[5];
+    inv[14] = -m[0]*m[5]*m[14]  + m[0]*m[6]*m[13]  + m[4]*m[1]*m[14] - m[4]*m[2]*m[13] - m[12]*m[1]*m[6]  + m[12]*m[2]*m[5];
+    inv[3]  = -m[1]*m[6]*m[11]  + m[1]*m[7]*m[10]  + m[5]*m[2]*m[11] - m[5]*m[3]*m[10] - m[9]*m[2]*m[7]   + m[9]*m[3]*m[6];
+    inv[7]  =  m[0]*m[6]*m[11]  - m[0]*m[7]*m[10]  - m[4]*m[2]*m[11] + m[4]*m[3]*m[10] + m[8]*m[2]*m[7]   - m[8]*m[3]*m[6];
+    inv[11] = -m[0]*m[5]*m[11]  + m[0]*m[7]*m[9]   + m[4]*m[1]*m[11] - m[4]*m[3]*m[9]  - m[8]*m[1]*m[7]   + m[8]*m[3]*m[5];
+    inv[15] =  m[0]*m[5]*m[10]  - m[0]*m[6]*m[9]   - m[4]*m[1]*m[10] + m[4]*m[2]*m[9]  + m[8]*m[1]*m[6]   - m[8]*m[2]*m[5];
+    let det = m[0]*inv[0] + m[1]*inv[4] + m[2]*inv[8] + m[3]*inv[12];
+    if (Math.abs(det) < 1e-10) return new Float32Array(16);
+    const invDet = 1.0 / det;
+    for (let i = 0; i < 16; i++) inv[i] *= invDet;
+    return inv;
+  }
+
+  // ── Resize ──
+  function resize() {
+    const dpr = Math.min(window.devicePixelRatio, 2);
+    const w = Math.floor(canvas.clientWidth * dpr);
+    const h = Math.floor(canvas.clientHeight * dpr);
+    if (canvas.width !== w || canvas.height !== h) {
+      canvas.width = w;
+      canvas.height = h;
+    }
+  }
+
+  // ── Render loop ──
+  const startTime = performance.now();
+
+  function frame() {
+    resize();
+    const time = (performance.now() - startTime) * 0.001;
+    const w = canvas.width;
+    const h = canvas.height;
+
+    // Camera
+    const eye = [
+      camDist * Math.cos(camPhi) * Math.sin(camTheta),
+      camDist * Math.sin(camPhi),
+      camDist * Math.cos(camPhi) * Math.cos(camTheta)
+    ];
+    const view = mat4LookAt(eye, [0, 0, 0], [0, 1, 0]);
+    const proj = mat4Perspective(Math.PI / 3.5, w / h, 0.1, 100);
+    const vp = mat4Multiply(proj, view);
+    const vpInv = mat4Inverse(vp);
+
+    // Sun direction (slightly animated)
+    const sunAngle = 0.6;
+    const lightDir = normalize3([
+      Math.cos(sunAngle) * 0.8,
+      0.6,
+      Math.sin(sunAngle) * 0.5
+    ]);
+
+    // Write uniforms
+    const uniformData = new ArrayBuffer(uniformBufferSize);
+    const f32 = new Float32Array(uniformData);
+    const offset = 0;
+    f32.set(vpInv, 0);                 // mat4 viewProjectionInv (0-15)
+    f32.set([eye[0], eye[1], eye[2], 0], 16);  // cameraPos (16-19)
+    f32.set([lightDir[0], lightDir[1], lightDir[2], 0], 20); // lightDir (20-23)
+    f32.set([
+      getParam('density'),
+      getParam('coverage'),
+      getParam('scale'),
+      getParam('detail')
+    ], 24);                            // params (24-27)
+    f32.set([
+      getParam('absorption'),
+      getParam('lightIntensity'),
+      getParam('windSpeed'),
+      time
+    ], 28);                            // params2 (28-31)
+    f32.set([w, h], 32);              // resolution (32-33)
+    f32.set([0, 0], 34);              // pad (34-35)
+
+    device.queue.writeBuffer(uniformBuffer, 0, uniformData);
+
+    // Render
+    const encoder = device.createCommandEncoder();
+    const pass = encoder.beginRenderPass({
+      colorAttachments: [{
+        view: ctx.getCurrentTexture().createView(),
+        loadOp: 'clear',
+        storeOp: 'store',
+        clearValue: { r: 0, g: 0, b: 0, a: 1 }
+      }]
+    });
+    pass.setPipeline(pipeline);
+    pass.setBindGroup(0, bindGroup);
+    pass.draw(3);
+    pass.end();
+    device.queue.submit([encoder.finish()]);
+
+    requestAnimationFrame(frame);
+  }
+
+  requestAnimationFrame(frame);
+}
+
+main();
+</script>
+</body>
+</html>

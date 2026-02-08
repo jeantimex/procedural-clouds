@@ -1,0 +1,2445 @@
+{
+  "materials": [
+    {
+      "material": "Material",
+      "nodes": [
+        {
+          "name": "Material Output",
+          "type": "OUTPUT_MATERIAL",
+          "bl_idname": "ShaderNodeOutputMaterial",
+          "label": "",
+          "location": [
+            300.0,
+            300.0
+          ],
+          "inputs": {
+            "Surface": {
+              "type": "SHADER",
+              "default_value": null
+            },
+            "Volume": {
+              "type": "SHADER",
+              "default_value": null
+            },
+            "Displacement": {
+              "type": "VECTOR",
+              "default_value": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "Thickness": {
+              "type": "VALUE",
+              "default_value": 0.0
+            }
+          },
+          "outputs": {}
+        },
+        {
+          "name": "Principled Volume",
+          "type": "PRINCIPLED_VOLUME",
+          "bl_idname": "ShaderNodeVolumePrincipled",
+          "label": "",
+          "location": [
+            0.0,
+            300.0
+          ],
+          "inputs": {
+            "Color": {
+              "type": "RGBA",
+              "default_value": [
+                1.0,
+                1.0,
+                1.0,
+                1.0
+              ]
+            },
+            "Color Attribute": {
+              "type": "STRING",
+              "default_value": []
+            },
+            "Density": {
+              "type": "VALUE",
+              "default_value": 1.0
+            },
+            "Density Attribute": {
+              "type": "STRING",
+              "default_value": [
+                "d",
+                "e",
+                "n",
+                "s",
+                "i",
+                "t",
+                "y"
+              ]
+            },
+            "Anisotropy": {
+              "type": "VALUE",
+              "default_value": 0.0
+            },
+            "Absorption Color": {
+              "type": "RGBA",
+              "default_value": [
+                0.0,
+                0.0,
+                0.0,
+                1.0
+              ]
+            },
+            "Emission Strength": {
+              "type": "VALUE",
+              "default_value": 0.0
+            },
+            "Emission Color": {
+              "type": "RGBA",
+              "default_value": [
+                1.0,
+                1.0,
+                1.0,
+                1.0
+              ]
+            },
+            "Blackbody Intensity": {
+              "type": "VALUE",
+              "default_value": 0.0
+            },
+            "Blackbody Tint": {
+              "type": "RGBA",
+              "default_value": [
+                1.0,
+                1.0,
+                1.0,
+                1.0
+              ]
+            },
+            "Temperature": {
+              "type": "VALUE",
+              "default_value": 1000.0
+            },
+            "Temperature Attribute": {
+              "type": "STRING",
+              "default_value": [
+                "t",
+                "e",
+                "m",
+                "p",
+                "e",
+                "r",
+                "a",
+                "t",
+                "u",
+                "r",
+                "e"
+              ]
+            },
+            "Weight": {
+              "type": "VALUE",
+              "default_value": 0.0
+            }
+          },
+          "outputs": {
+            "Volume": {
+              "type": "SHADER"
+            }
+          }
+        },
+        {
+          "name": "Group.001",
+          "type": "GROUP",
+          "bl_idname": "ShaderNodeGroup",
+          "label": "",
+          "location": [
+            -240.0,
+            300.0
+          ],
+          "inputs": {
+            "Density": {
+              "type": "VALUE",
+              "default_value": 1.0
+            },
+            "Low Altitude Density": {
+              "type": "VALUE",
+              "default_value": 0.20000000298023224
+            },
+            "Altitude": {
+              "type": "VALUE",
+              "default_value": 0.5
+            },
+            "Factor": {
+              "type": "VALUE",
+              "default_value": 1.0
+            },
+            "Scale": {
+              "type": "VALUE",
+              "default_value": 1.0
+            },
+            "Time": {
+              "type": "VALUE",
+              "default_value": 0.0
+            },
+            "Detail": {
+              "type": "VALUE",
+              "default_value": 1.0
+            }
+          },
+          "outputs": {
+            "Density": {
+              "type": "VALUE"
+            }
+          },
+          "node_tree_name": "Procedural Clouds Shader"
+        }
+      ],
+      "links": [
+        {
+          "from_node": "Principled Volume",
+          "from_socket": "Volume",
+          "to_node": "Material Output",
+          "to_socket": "Volume"
+        },
+        {
+          "from_node": "Group.001",
+          "from_socket": "Density",
+          "to_node": "Principled Volume",
+          "to_socket": "Density"
+        }
+      ]
+    }
+  ],
+  "node_groups": [
+    {
+      "name": "Procedural Clouds Shader",
+      "nodes": [
+        {
+          "name": "Group Output",
+          "type": "GROUP_OUTPUT",
+          "bl_idname": "NodeGroupOutput",
+          "label": "",
+          "location": [
+            4620.0,
+            360.0
+          ],
+          "inputs": {
+            "Density": {
+              "type": "VALUE",
+              "default_value": 0.0
+            },
+            "": {
+              "type": "CUSTOM",
+              "default_value": null
+            }
+          },
+          "outputs": {}
+        },
+        {
+          "name": "Group Input",
+          "type": "GROUP_INPUT",
+          "bl_idname": "NodeGroupInput",
+          "label": "",
+          "location": [
+            29.999969482421875,
+            -337.3026123046875
+          ],
+          "inputs": {},
+          "outputs": {
+            "Density": {
+              "type": "VALUE"
+            },
+            "Low Altitude Density": {
+              "type": "VALUE"
+            },
+            "Altitude": {
+              "type": "VALUE"
+            },
+            "Factor": {
+              "type": "VALUE"
+            },
+            "Scale": {
+              "type": "VALUE"
+            },
+            "Time": {
+              "type": "VALUE"
+            },
+            "Detail": {
+              "type": "VALUE"
+            },
+            "": {
+              "type": "CUSTOM"
+            }
+          }
+        },
+        {
+          "name": "Math.016",
+          "type": "MATH",
+          "bl_idname": "ShaderNodeMath",
+          "label": "",
+          "location": [
+            4140.0,
+            260.0
+          ],
+          "inputs": {
+            "Value": {
+              "type": "VALUE",
+              "default_value": 0.5
+            }
+          },
+          "outputs": {
+            "Value": {
+              "type": "VALUE"
+            }
+          },
+          "operation": "MULTIPLY",
+          "use_clamp": false
+        },
+        {
+          "name": "Separate XYZ.002",
+          "type": "SEPXYZ",
+          "bl_idname": "ShaderNodeSeparateXYZ",
+          "label": "",
+          "location": [
+            210.00003051757812,
+            -77.3026123046875
+          ],
+          "inputs": {
+            "Vector": {
+              "type": "VECTOR",
+              "default_value": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            }
+          },
+          "outputs": {
+            "X": {
+              "type": "VALUE"
+            },
+            "Y": {
+              "type": "VALUE"
+            },
+            "Z": {
+              "type": "VALUE"
+            }
+          }
+        },
+        {
+          "name": "Map Range.008",
+          "type": "MAP_RANGE",
+          "bl_idname": "ShaderNodeMapRange",
+          "label": "",
+          "location": [
+            390.0001525878906,
+            -77.3026123046875
+          ],
+          "inputs": {
+            "Value": {
+              "type": "VALUE",
+              "default_value": 1.0
+            },
+            "From Min": {
+              "type": "VECTOR",
+              "default_value": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "From Max": {
+              "type": "VECTOR",
+              "default_value": [
+                1.0,
+                1.0,
+                1.0
+              ]
+            },
+            "To Min": {
+              "type": "VECTOR",
+              "default_value": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "To Max": {
+              "type": "VECTOR",
+              "default_value": [
+                1.0,
+                1.0,
+                1.0
+              ]
+            },
+            "Steps": {
+              "type": "VECTOR",
+              "default_value": [
+                4.0,
+                4.0,
+                4.0
+              ]
+            },
+            "Vector": {
+              "type": "VECTOR",
+              "default_value": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            }
+          },
+          "outputs": {
+            "Result": {
+              "type": "VALUE"
+            },
+            "Vector": {
+              "type": "VECTOR"
+            }
+          },
+          "data_type": "FLOAT",
+          "interpolation_type": "LINEAR",
+          "clamp": true
+        },
+        {
+          "name": "Math.020",
+          "type": "MATH",
+          "bl_idname": "ShaderNodeMath",
+          "label": "",
+          "location": [
+            1771.2000732421875,
+            420.0
+          ],
+          "inputs": {
+            "Value": {
+              "type": "VALUE",
+              "default_value": 0.5
+            }
+          },
+          "outputs": {
+            "Value": {
+              "type": "VALUE"
+            }
+          },
+          "operation": "SUBTRACT",
+          "use_clamp": true
+        },
+        {
+          "name": "Voronoi Texture.003",
+          "type": "TEX_VORONOI",
+          "bl_idname": "ShaderNodeTexVoronoi",
+          "label": "",
+          "location": [
+            380.0,
+            -80.0
+          ],
+          "inputs": {
+            "Vector": {
+              "type": "VECTOR",
+              "default_value": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "W": {
+              "type": "VALUE",
+              "default_value": 0.0
+            },
+            "Scale": {
+              "type": "VALUE",
+              "default_value": 2.0
+            },
+            "Detail": {
+              "type": "VALUE",
+              "default_value": 5.0
+            },
+            "Roughness": {
+              "type": "VALUE",
+              "default_value": 0.75
+            },
+            "Lacunarity": {
+              "type": "VALUE",
+              "default_value": 2.5
+            },
+            "Smoothness": {
+              "type": "VALUE",
+              "default_value": 1.0
+            },
+            "Exponent": {
+              "type": "VALUE",
+              "default_value": 0.5
+            },
+            "Randomness": {
+              "type": "VALUE",
+              "default_value": 1.0
+            }
+          },
+          "outputs": {
+            "Distance": {
+              "type": "VALUE"
+            },
+            "Color": {
+              "type": "RGBA"
+            },
+            "Position": {
+              "type": "VECTOR"
+            },
+            "W": {
+              "type": "VALUE"
+            },
+            "Radius": {
+              "type": "VALUE"
+            }
+          },
+          "voronoi_dimensions": "4D",
+          "distance": "EUCLIDEAN",
+          "feature": "F1"
+        },
+        {
+          "name": "Separate XYZ.003",
+          "type": "SEPXYZ",
+          "bl_idname": "ShaderNodeSeparateXYZ",
+          "label": "",
+          "location": [
+            3220.0,
+            40.0
+          ],
+          "inputs": {
+            "Vector": {
+              "type": "VECTOR",
+              "default_value": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            }
+          },
+          "outputs": {
+            "X": {
+              "type": "VALUE"
+            },
+            "Y": {
+              "type": "VALUE"
+            },
+            "Z": {
+              "type": "VALUE"
+            }
+          }
+        },
+        {
+          "name": "Map Range.009",
+          "type": "MAP_RANGE",
+          "bl_idname": "ShaderNodeMapRange",
+          "label": "",
+          "location": [
+            3420.0,
+            100.0
+          ],
+          "inputs": {
+            "Value": {
+              "type": "VALUE",
+              "default_value": 1.0
+            },
+            "From Min": {
+              "type": "VECTOR",
+              "default_value": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "From Max": {
+              "type": "VECTOR",
+              "default_value": [
+                1.0,
+                1.0,
+                1.0
+              ]
+            },
+            "To Min": {
+              "type": "VECTOR",
+              "default_value": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "To Max": {
+              "type": "VECTOR",
+              "default_value": [
+                1.0,
+                1.0,
+                1.0
+              ]
+            },
+            "Steps": {
+              "type": "VECTOR",
+              "default_value": [
+                4.0,
+                4.0,
+                4.0
+              ]
+            },
+            "Vector": {
+              "type": "VECTOR",
+              "default_value": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            }
+          },
+          "outputs": {
+            "Result": {
+              "type": "VALUE"
+            },
+            "Vector": {
+              "type": "VECTOR"
+            }
+          },
+          "data_type": "FLOAT",
+          "interpolation_type": "LINEAR",
+          "clamp": true
+        },
+        {
+          "name": "Voronoi Texture.004",
+          "type": "TEX_VORONOI",
+          "bl_idname": "ShaderNodeTexVoronoi",
+          "label": "",
+          "location": [
+            -1340.0,
+            80.0
+          ],
+          "inputs": {
+            "Vector": {
+              "type": "VECTOR",
+              "default_value": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "W": {
+              "type": "VALUE",
+              "default_value": 0.0
+            },
+            "Scale": {
+              "type": "VALUE",
+              "default_value": 5.0
+            },
+            "Detail": {
+              "type": "VALUE",
+              "default_value": 1.0
+            },
+            "Roughness": {
+              "type": "VALUE",
+              "default_value": 0.5
+            },
+            "Lacunarity": {
+              "type": "VALUE",
+              "default_value": 3.0
+            },
+            "Smoothness": {
+              "type": "VALUE",
+              "default_value": 1.0
+            },
+            "Exponent": {
+              "type": "VALUE",
+              "default_value": 0.5
+            },
+            "Randomness": {
+              "type": "VALUE",
+              "default_value": 1.0
+            }
+          },
+          "outputs": {
+            "Distance": {
+              "type": "VALUE"
+            },
+            "Color": {
+              "type": "RGBA"
+            },
+            "Position": {
+              "type": "VECTOR"
+            },
+            "W": {
+              "type": "VALUE"
+            },
+            "Radius": {
+              "type": "VALUE"
+            }
+          },
+          "voronoi_dimensions": "4D",
+          "distance": "EUCLIDEAN",
+          "feature": "F1"
+        },
+        {
+          "name": "Map Range.002",
+          "type": "MAP_RANGE",
+          "bl_idname": "ShaderNodeMapRange",
+          "label": "",
+          "location": [
+            560.0,
+            -80.0
+          ],
+          "inputs": {
+            "Value": {
+              "type": "VALUE",
+              "default_value": 1.0
+            },
+            "From Min": {
+              "type": "VECTOR",
+              "default_value": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "From Max": {
+              "type": "VECTOR",
+              "default_value": [
+                1.0,
+                1.0,
+                1.0
+              ]
+            },
+            "To Min": {
+              "type": "VECTOR",
+              "default_value": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "To Max": {
+              "type": "VECTOR",
+              "default_value": [
+                1.0,
+                1.0,
+                1.0
+              ]
+            },
+            "Steps": {
+              "type": "VECTOR",
+              "default_value": [
+                4.0,
+                4.0,
+                4.0
+              ]
+            },
+            "Vector": {
+              "type": "VECTOR",
+              "default_value": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            }
+          },
+          "outputs": {
+            "Result": {
+              "type": "VALUE"
+            },
+            "Vector": {
+              "type": "VECTOR"
+            }
+          },
+          "data_type": "FLOAT",
+          "interpolation_type": "LINEAR",
+          "clamp": true
+        },
+        {
+          "name": "Map Range.001",
+          "type": "MAP_RANGE",
+          "bl_idname": "ShaderNodeMapRange",
+          "label": "",
+          "location": [
+            -1160.0,
+            80.0
+          ],
+          "inputs": {
+            "Value": {
+              "type": "VALUE",
+              "default_value": 1.0
+            },
+            "From Min": {
+              "type": "VECTOR",
+              "default_value": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "From Max": {
+              "type": "VECTOR",
+              "default_value": [
+                1.0,
+                1.0,
+                1.0
+              ]
+            },
+            "To Min": {
+              "type": "VECTOR",
+              "default_value": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "To Max": {
+              "type": "VECTOR",
+              "default_value": [
+                1.0,
+                1.0,
+                1.0
+              ]
+            },
+            "Steps": {
+              "type": "VECTOR",
+              "default_value": [
+                4.0,
+                4.0,
+                4.0
+              ]
+            },
+            "Vector": {
+              "type": "VECTOR",
+              "default_value": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            }
+          },
+          "outputs": {
+            "Result": {
+              "type": "VALUE"
+            },
+            "Vector": {
+              "type": "VECTOR"
+            }
+          },
+          "data_type": "FLOAT",
+          "interpolation_type": "LINEAR",
+          "clamp": true
+        },
+        {
+          "name": "Noise Texture",
+          "type": "TEX_NOISE",
+          "bl_idname": "ShaderNodeTexNoise",
+          "label": "",
+          "location": [
+            -2800.0,
+            180.0
+          ],
+          "inputs": {
+            "Vector": {
+              "type": "VECTOR",
+              "default_value": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "W": {
+              "type": "VALUE",
+              "default_value": 0.0
+            },
+            "Scale": {
+              "type": "VALUE",
+              "default_value": 2.0
+            },
+            "Detail": {
+              "type": "VALUE",
+              "default_value": 0.0
+            },
+            "Roughness": {
+              "type": "VALUE",
+              "default_value": 0.0
+            },
+            "Lacunarity": {
+              "type": "VALUE",
+              "default_value": 0.0
+            },
+            "Offset": {
+              "type": "VALUE",
+              "default_value": 0.0
+            },
+            "Gain": {
+              "type": "VALUE",
+              "default_value": 1.0
+            },
+            "Distortion": {
+              "type": "VALUE",
+              "default_value": 0.0
+            }
+          },
+          "outputs": {
+            "Factor": {
+              "type": "VALUE"
+            },
+            "Color": {
+              "type": "RGBA"
+            }
+          },
+          "noise_dimensions": "4D",
+          "noise_type": "FBM"
+        },
+        {
+          "name": "Math",
+          "type": "MATH",
+          "bl_idname": "ShaderNodeMath",
+          "label": "",
+          "location": [
+            210.00003051757812,
+            -217.3026123046875
+          ],
+          "inputs": {
+            "Value": {
+              "type": "VALUE",
+              "default_value": 0.5
+            }
+          },
+          "outputs": {
+            "Value": {
+              "type": "VALUE"
+            }
+          },
+          "operation": "MULTIPLY",
+          "use_clamp": false
+        },
+        {
+          "name": "Frame",
+          "type": "FRAME",
+          "bl_idname": "NodeFrame",
+          "label": "Max Altitude",
+          "location": [
+            400.3999938964844,
+            1142.300048828125
+          ],
+          "inputs": {},
+          "outputs": {}
+        },
+        {
+          "name": "Group Input.004",
+          "type": "GROUP_INPUT",
+          "bl_idname": "NodeGroupInput",
+          "label": "",
+          "location": [
+            3220.0,
+            -80.0
+          ],
+          "inputs": {},
+          "outputs": {
+            "Density": {
+              "type": "VALUE"
+            },
+            "Low Altitude Density": {
+              "type": "VALUE"
+            },
+            "Altitude": {
+              "type": "VALUE"
+            },
+            "Factor": {
+              "type": "VALUE"
+            },
+            "Scale": {
+              "type": "VALUE"
+            },
+            "Time": {
+              "type": "VALUE"
+            },
+            "Detail": {
+              "type": "VALUE"
+            },
+            "": {
+              "type": "CUSTOM"
+            }
+          }
+        },
+        {
+          "name": "Group Input.008",
+          "type": "GROUP_INPUT",
+          "bl_idname": "NodeGroupInput",
+          "label": "",
+          "location": [
+            -1700.0,
+            80.0
+          ],
+          "inputs": {},
+          "outputs": {
+            "Density": {
+              "type": "VALUE"
+            },
+            "Low Altitude Density": {
+              "type": "VALUE"
+            },
+            "Altitude": {
+              "type": "VALUE"
+            },
+            "Factor": {
+              "type": "VALUE"
+            },
+            "Scale": {
+              "type": "VALUE"
+            },
+            "Time": {
+              "type": "VALUE"
+            },
+            "Detail": {
+              "type": "VALUE"
+            },
+            "": {
+              "type": "CUSTOM"
+            }
+          }
+        },
+        {
+          "name": "Group Input.009",
+          "type": "GROUP_INPUT",
+          "bl_idname": "NodeGroupInput",
+          "label": "",
+          "location": [
+            380.0,
+            -460.0
+          ],
+          "inputs": {},
+          "outputs": {
+            "Density": {
+              "type": "VALUE"
+            },
+            "Low Altitude Density": {
+              "type": "VALUE"
+            },
+            "Altitude": {
+              "type": "VALUE"
+            },
+            "Factor": {
+              "type": "VALUE"
+            },
+            "Scale": {
+              "type": "VALUE"
+            },
+            "Time": {
+              "type": "VALUE"
+            },
+            "Detail": {
+              "type": "VALUE"
+            },
+            "": {
+              "type": "CUSTOM"
+            }
+          }
+        },
+        {
+          "name": "Group Input.012",
+          "type": "GROUP_INPUT",
+          "bl_idname": "NodeGroupInput",
+          "label": "",
+          "location": [
+            -200.0,
+            -40.0
+          ],
+          "inputs": {},
+          "outputs": {
+            "Density": {
+              "type": "VALUE"
+            },
+            "Low Altitude Density": {
+              "type": "VALUE"
+            },
+            "Altitude": {
+              "type": "VALUE"
+            },
+            "Factor": {
+              "type": "VALUE"
+            },
+            "Scale": {
+              "type": "VALUE"
+            },
+            "Time": {
+              "type": "VALUE"
+            },
+            "Detail": {
+              "type": "VALUE"
+            },
+            "": {
+              "type": "CUSTOM"
+            }
+          }
+        },
+        {
+          "name": "Group Input.014",
+          "type": "GROUP_INPUT",
+          "bl_idname": "NodeGroupInput",
+          "label": "",
+          "location": [
+            -3160.0,
+            180.0
+          ],
+          "inputs": {},
+          "outputs": {
+            "Density": {
+              "type": "VALUE"
+            },
+            "Low Altitude Density": {
+              "type": "VALUE"
+            },
+            "Altitude": {
+              "type": "VALUE"
+            },
+            "Factor": {
+              "type": "VALUE"
+            },
+            "Scale": {
+              "type": "VALUE"
+            },
+            "Time": {
+              "type": "VALUE"
+            },
+            "Detail": {
+              "type": "VALUE"
+            },
+            "": {
+              "type": "CUSTOM"
+            }
+          }
+        },
+        {
+          "name": "Vector Math",
+          "type": "VECT_MATH",
+          "bl_idname": "ShaderNodeVectorMath",
+          "label": "",
+          "location": [
+            -2980.0,
+            180.0
+          ],
+          "inputs": {
+            "Vector": {
+              "type": "VECTOR",
+              "default_value": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "Scale": {
+              "type": "VALUE",
+              "default_value": 1.0
+            }
+          },
+          "outputs": {
+            "Vector": {
+              "type": "VECTOR"
+            },
+            "Value": {
+              "type": "VALUE"
+            }
+          },
+          "operation": "DIVIDE"
+        },
+        {
+          "name": "Vector Math.001",
+          "type": "VECT_MATH",
+          "bl_idname": "ShaderNodeVectorMath",
+          "label": "",
+          "location": [
+            -1520.0,
+            80.0
+          ],
+          "inputs": {
+            "Vector": {
+              "type": "VECTOR",
+              "default_value": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "Scale": {
+              "type": "VALUE",
+              "default_value": 1.0
+            }
+          },
+          "outputs": {
+            "Vector": {
+              "type": "VECTOR"
+            },
+            "Value": {
+              "type": "VALUE"
+            }
+          },
+          "operation": "DIVIDE"
+        },
+        {
+          "name": "Math.005",
+          "type": "MATH",
+          "bl_idname": "ShaderNodeMath",
+          "label": "",
+          "location": [
+            2671.2001953125,
+            220.0
+          ],
+          "inputs": {
+            "Value": {
+              "type": "VALUE",
+              "default_value": 0.5
+            }
+          },
+          "outputs": {
+            "Value": {
+              "type": "VALUE"
+            }
+          },
+          "operation": "SUBTRACT",
+          "use_clamp": true
+        },
+        {
+          "name": "Group Input.013",
+          "type": "GROUP_INPUT",
+          "bl_idname": "NodeGroupInput",
+          "label": "",
+          "location": [
+            2180.0,
+            80.0
+          ],
+          "inputs": {},
+          "outputs": {
+            "Density": {
+              "type": "VALUE"
+            },
+            "Low Altitude Density": {
+              "type": "VALUE"
+            },
+            "Altitude": {
+              "type": "VALUE"
+            },
+            "Factor": {
+              "type": "VALUE"
+            },
+            "Scale": {
+              "type": "VALUE"
+            },
+            "Time": {
+              "type": "VALUE"
+            },
+            "Detail": {
+              "type": "VALUE"
+            },
+            "": {
+              "type": "CUSTOM"
+            }
+          }
+        },
+        {
+          "name": "Math.002",
+          "type": "MATH",
+          "bl_idname": "ShaderNodeMath",
+          "label": "",
+          "location": [
+            2360.0,
+            80.0
+          ],
+          "inputs": {
+            "Value": {
+              "type": "VALUE",
+              "default_value": 1.0
+            }
+          },
+          "outputs": {
+            "Value": {
+              "type": "VALUE"
+            }
+          },
+          "operation": "MULTIPLY_ADD",
+          "use_clamp": false
+        },
+        {
+          "name": "Math.003",
+          "type": "MATH",
+          "bl_idname": "ShaderNodeMath",
+          "label": "",
+          "location": [
+            -800.0,
+            140.0
+          ],
+          "inputs": {
+            "Value": {
+              "type": "VALUE",
+              "default_value": 0.5
+            }
+          },
+          "outputs": {
+            "Value": {
+              "type": "VALUE"
+            }
+          },
+          "operation": "ADD",
+          "use_clamp": true
+        },
+        {
+          "name": "Vector Math.002",
+          "type": "VECT_MATH",
+          "bl_idname": "ShaderNodeVectorMath",
+          "label": "",
+          "location": [
+            200.0,
+            -80.0
+          ],
+          "inputs": {
+            "Vector": {
+              "type": "VECTOR",
+              "default_value": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "Scale": {
+              "type": "VALUE",
+              "default_value": 1.0
+            }
+          },
+          "outputs": {
+            "Vector": {
+              "type": "VECTOR"
+            },
+            "Value": {
+              "type": "VALUE"
+            }
+          },
+          "operation": "DIVIDE"
+        },
+        {
+          "name": "Math.004",
+          "type": "MATH",
+          "bl_idname": "ShaderNodeMath",
+          "label": "",
+          "location": [
+            899.9999389648438,
+            140.0
+          ],
+          "inputs": {
+            "Value": {
+              "type": "VALUE",
+              "default_value": 0.5
+            }
+          },
+          "outputs": {
+            "Value": {
+              "type": "VALUE"
+            }
+          },
+          "operation": "ADD",
+          "use_clamp": true
+        },
+        {
+          "name": "Group Input.010",
+          "type": "GROUP_INPUT",
+          "bl_idname": "NodeGroupInput",
+          "label": "",
+          "location": [
+            -1720.0,
+            -340.0
+          ],
+          "inputs": {},
+          "outputs": {
+            "Density": {
+              "type": "VALUE"
+            },
+            "Low Altitude Density": {
+              "type": "VALUE"
+            },
+            "Altitude": {
+              "type": "VALUE"
+            },
+            "Factor": {
+              "type": "VALUE"
+            },
+            "Scale": {
+              "type": "VALUE"
+            },
+            "Time": {
+              "type": "VALUE"
+            },
+            "Detail": {
+              "type": "VALUE"
+            },
+            "": {
+              "type": "CUSTOM"
+            }
+          }
+        },
+        {
+          "name": "Math.001",
+          "type": "MATH",
+          "bl_idname": "ShaderNodeMath",
+          "label": "",
+          "location": [
+            3760.0,
+            80.0
+          ],
+          "inputs": {
+            "Value": {
+              "type": "VALUE",
+              "default_value": 0.5
+            }
+          },
+          "outputs": {
+            "Value": {
+              "type": "VALUE"
+            }
+          },
+          "operation": "MULTIPLY",
+          "use_clamp": false
+        },
+        {
+          "name": "Math.006",
+          "type": "MATH",
+          "bl_idname": "ShaderNodeMath",
+          "label": "",
+          "location": [
+            620.0,
+            -480.0
+          ],
+          "inputs": {
+            "Value": {
+              "type": "VALUE",
+              "default_value": 0.5
+            }
+          },
+          "outputs": {
+            "Value": {
+              "type": "VALUE"
+            }
+          },
+          "operation": "MULTIPLY",
+          "use_clamp": false
+        },
+        {
+          "name": "Math.007",
+          "type": "MATH",
+          "bl_idname": "ShaderNodeMath",
+          "label": "",
+          "location": [
+            -1540.0,
+            -220.0
+          ],
+          "inputs": {
+            "Value": {
+              "type": "VALUE",
+              "default_value": 0.5
+            }
+          },
+          "outputs": {
+            "Value": {
+              "type": "VALUE"
+            }
+          },
+          "operation": "MULTIPLY",
+          "use_clamp": false
+        },
+        {
+          "name": "Separate XYZ.004",
+          "type": "SEPXYZ",
+          "bl_idname": "ShaderNodeSeparateXYZ",
+          "label": "",
+          "location": [
+            -3300.0,
+            660.0
+          ],
+          "inputs": {
+            "Vector": {
+              "type": "VECTOR",
+              "default_value": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            }
+          },
+          "outputs": {
+            "X": {
+              "type": "VALUE"
+            },
+            "Y": {
+              "type": "VALUE"
+            },
+            "Z": {
+              "type": "VALUE"
+            }
+          }
+        },
+        {
+          "name": "Map Range.010",
+          "type": "MAP_RANGE",
+          "bl_idname": "ShaderNodeMapRange",
+          "label": "",
+          "location": [
+            -2860.0,
+            620.0
+          ],
+          "inputs": {
+            "Value": {
+              "type": "VALUE",
+              "default_value": 1.0
+            },
+            "From Min": {
+              "type": "VECTOR",
+              "default_value": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "From Max": {
+              "type": "VECTOR",
+              "default_value": [
+                1.0,
+                1.0,
+                1.0
+              ]
+            },
+            "To Min": {
+              "type": "VECTOR",
+              "default_value": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "To Max": {
+              "type": "VECTOR",
+              "default_value": [
+                1.0,
+                1.0,
+                1.0
+              ]
+            },
+            "Steps": {
+              "type": "VECTOR",
+              "default_value": [
+                4.0,
+                4.0,
+                4.0
+              ]
+            },
+            "Vector": {
+              "type": "VECTOR",
+              "default_value": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            }
+          },
+          "outputs": {
+            "Result": {
+              "type": "VALUE"
+            },
+            "Vector": {
+              "type": "VECTOR"
+            }
+          },
+          "data_type": "FLOAT",
+          "interpolation_type": "LINEAR",
+          "clamp": true
+        },
+        {
+          "name": "Group Input.015",
+          "type": "GROUP_INPUT",
+          "bl_idname": "NodeGroupInput",
+          "label": "",
+          "location": [
+            -3580.0,
+            560.0
+          ],
+          "inputs": {},
+          "outputs": {
+            "Density": {
+              "type": "VALUE"
+            },
+            "Low Altitude Density": {
+              "type": "VALUE"
+            },
+            "Altitude": {
+              "type": "VALUE"
+            },
+            "Factor": {
+              "type": "VALUE"
+            },
+            "Scale": {
+              "type": "VALUE"
+            },
+            "Time": {
+              "type": "VALUE"
+            },
+            "Detail": {
+              "type": "VALUE"
+            },
+            "": {
+              "type": "CUSTOM"
+            }
+          }
+        },
+        {
+          "name": "Math.008",
+          "type": "MATH",
+          "bl_idname": "ShaderNodeMath",
+          "label": "",
+          "location": [
+            -2460.0,
+            260.0
+          ],
+          "inputs": {
+            "Value": {
+              "type": "VALUE",
+              "default_value": 0.5
+            }
+          },
+          "outputs": {
+            "Value": {
+              "type": "VALUE"
+            }
+          },
+          "operation": "MULTIPLY",
+          "use_clamp": true
+        },
+        {
+          "name": "Math.009",
+          "type": "MATH",
+          "bl_idname": "ShaderNodeMath",
+          "label": "",
+          "location": [
+            -3300.0,
+            520.0
+          ],
+          "inputs": {
+            "Value": {
+              "type": "VALUE",
+              "default_value": 0.5
+            }
+          },
+          "outputs": {
+            "Value": {
+              "type": "VALUE"
+            }
+          },
+          "operation": "DIVIDE",
+          "use_clamp": false
+        },
+        {
+          "name": "Math.010",
+          "type": "MATH",
+          "bl_idname": "ShaderNodeMath",
+          "label": "",
+          "location": [
+            -3300.0,
+            360.0
+          ],
+          "inputs": {
+            "Value": {
+              "type": "VALUE",
+              "default_value": 1.0
+            }
+          },
+          "outputs": {
+            "Value": {
+              "type": "VALUE"
+            }
+          },
+          "operation": "MULTIPLY_ADD",
+          "use_clamp": false
+        },
+        {
+          "name": "Math.011",
+          "type": "MATH",
+          "bl_idname": "ShaderNodeMath",
+          "label": "",
+          "location": [
+            3420.0,
+            -160.0
+          ],
+          "inputs": {
+            "Value": {
+              "type": "VALUE",
+              "default_value": 0.5
+            }
+          },
+          "outputs": {
+            "Value": {
+              "type": "VALUE"
+            }
+          },
+          "operation": "MULTIPLY",
+          "use_clamp": false
+        },
+        {
+          "name": "Math.012",
+          "type": "MATH",
+          "bl_idname": "ShaderNodeMath",
+          "label": "",
+          "location": [
+            -980.0,
+            60.0
+          ],
+          "inputs": {
+            "Value": {
+              "type": "VALUE",
+              "default_value": 0.5
+            }
+          },
+          "outputs": {
+            "Value": {
+              "type": "VALUE"
+            }
+          },
+          "operation": "MULTIPLY",
+          "use_clamp": true
+        },
+        {
+          "name": "Reroute",
+          "type": "REROUTE",
+          "bl_idname": "NodeReroute",
+          "label": "",
+          "location": [
+            -582.790283203125,
+            162.19102478027344
+          ],
+          "inputs": {
+            "Input": {
+              "type": "VALUE",
+              "default_value": 0.0
+            }
+          },
+          "outputs": {
+            "Output": {
+              "type": "VALUE"
+            }
+          }
+        },
+        {
+          "name": "Reroute.001",
+          "type": "REROUTE",
+          "bl_idname": "NodeReroute",
+          "label": "",
+          "location": [
+            -962.4143676757812,
+            175.227783203125
+          ],
+          "inputs": {
+            "Input": {
+              "type": "VALUE",
+              "default_value": 0.0
+            }
+          },
+          "outputs": {
+            "Output": {
+              "type": "VALUE"
+            }
+          }
+        },
+        {
+          "name": "Math.013",
+          "type": "MATH",
+          "bl_idname": "ShaderNodeMath",
+          "label": "",
+          "location": [
+            200.0,
+            -220.0
+          ],
+          "inputs": {
+            "Value": {
+              "type": "VALUE",
+              "default_value": 0.5
+            }
+          },
+          "outputs": {
+            "Value": {
+              "type": "VALUE"
+            }
+          },
+          "operation": "MULTIPLY",
+          "use_clamp": false
+        },
+        {
+          "name": "Texture Coordinate",
+          "type": "TEX_COORD",
+          "bl_idname": "ShaderNodeTexCoord",
+          "label": "",
+          "location": [
+            -400.0,
+            -100.0
+          ],
+          "inputs": {},
+          "outputs": {
+            "Generated": {
+              "type": "VECTOR"
+            },
+            "Normal": {
+              "type": "VECTOR"
+            },
+            "UV": {
+              "type": "VECTOR"
+            },
+            "Object": {
+              "type": "VECTOR"
+            },
+            "Camera": {
+              "type": "VECTOR"
+            },
+            "Window": {
+              "type": "VECTOR"
+            },
+            "Reflection": {
+              "type": "VECTOR"
+            }
+          }
+        },
+        {
+          "name": "Texture Coordinate.001",
+          "type": "TEX_COORD",
+          "bl_idname": "ShaderNodeTexCoord",
+          "label": "",
+          "location": [
+            -1920.0,
+            20.0
+          ],
+          "inputs": {},
+          "outputs": {
+            "Generated": {
+              "type": "VECTOR"
+            },
+            "Normal": {
+              "type": "VECTOR"
+            },
+            "UV": {
+              "type": "VECTOR"
+            },
+            "Object": {
+              "type": "VECTOR"
+            },
+            "Camera": {
+              "type": "VECTOR"
+            },
+            "Window": {
+              "type": "VECTOR"
+            },
+            "Reflection": {
+              "type": "VECTOR"
+            }
+          }
+        },
+        {
+          "name": "Texture Coordinate.002",
+          "type": "TEX_COORD",
+          "bl_idname": "ShaderNodeTexCoord",
+          "label": "",
+          "location": [
+            -3340.0,
+            120.0
+          ],
+          "inputs": {},
+          "outputs": {
+            "Generated": {
+              "type": "VECTOR"
+            },
+            "Normal": {
+              "type": "VECTOR"
+            },
+            "UV": {
+              "type": "VECTOR"
+            },
+            "Object": {
+              "type": "VECTOR"
+            },
+            "Camera": {
+              "type": "VECTOR"
+            },
+            "Window": {
+              "type": "VECTOR"
+            },
+            "Reflection": {
+              "type": "VECTOR"
+            }
+          }
+        },
+        {
+          "name": "Texture Coordinate.003",
+          "type": "TEX_COORD",
+          "bl_idname": "ShaderNodeTexCoord",
+          "label": "",
+          "location": [
+            -3840.0,
+            540.0
+          ],
+          "inputs": {},
+          "outputs": {
+            "Generated": {
+              "type": "VECTOR"
+            },
+            "Normal": {
+              "type": "VECTOR"
+            },
+            "UV": {
+              "type": "VECTOR"
+            },
+            "Object": {
+              "type": "VECTOR"
+            },
+            "Camera": {
+              "type": "VECTOR"
+            },
+            "Window": {
+              "type": "VECTOR"
+            },
+            "Reflection": {
+              "type": "VECTOR"
+            }
+          }
+        },
+        {
+          "name": "Texture Coordinate.004",
+          "type": "TEX_COORD",
+          "bl_idname": "ShaderNodeTexCoord",
+          "label": "",
+          "location": [
+            200.0,
+            1060.0
+          ],
+          "inputs": {},
+          "outputs": {
+            "Generated": {
+              "type": "VECTOR"
+            },
+            "Normal": {
+              "type": "VECTOR"
+            },
+            "UV": {
+              "type": "VECTOR"
+            },
+            "Object": {
+              "type": "VECTOR"
+            },
+            "Camera": {
+              "type": "VECTOR"
+            },
+            "Window": {
+              "type": "VECTOR"
+            },
+            "Reflection": {
+              "type": "VECTOR"
+            }
+          }
+        },
+        {
+          "name": "Texture Coordinate.005",
+          "type": "TEX_COORD",
+          "bl_idname": "ShaderNodeTexCoord",
+          "label": "",
+          "location": [
+            3000.0,
+            0.0
+          ],
+          "inputs": {},
+          "outputs": {
+            "Generated": {
+              "type": "VECTOR"
+            },
+            "Normal": {
+              "type": "VECTOR"
+            },
+            "UV": {
+              "type": "VECTOR"
+            },
+            "Object": {
+              "type": "VECTOR"
+            },
+            "Camera": {
+              "type": "VECTOR"
+            },
+            "Window": {
+              "type": "VECTOR"
+            },
+            "Reflection": {
+              "type": "VECTOR"
+            }
+          }
+        }
+      ],
+      "links": [
+        {
+          "from_node": "Separate XYZ.003",
+          "from_socket": "Z",
+          "to_node": "Map Range.009",
+          "to_socket": "Value"
+        },
+        {
+          "from_node": "Map Range.008",
+          "from_socket": "Result",
+          "to_node": "Math.020",
+          "to_socket": "Value"
+        },
+        {
+          "from_node": "Voronoi Texture.003",
+          "from_socket": "Distance",
+          "to_node": "Map Range.002",
+          "to_socket": "Value"
+        },
+        {
+          "from_node": "Separate XYZ.002",
+          "from_socket": "Z",
+          "to_node": "Map Range.008",
+          "to_socket": "Value"
+        },
+        {
+          "from_node": "Voronoi Texture.004",
+          "from_socket": "Distance",
+          "to_node": "Map Range.001",
+          "to_socket": "Value"
+        },
+        {
+          "from_node": "Math",
+          "from_socket": "Value",
+          "to_node": "Map Range.008",
+          "to_socket": "From Min"
+        },
+        {
+          "from_node": "Group Input",
+          "from_socket": "Altitude",
+          "to_node": "Math",
+          "to_socket": "Value"
+        },
+        {
+          "from_node": "Group Input",
+          "from_socket": "Scale",
+          "to_node": "Math",
+          "to_socket": "Value"
+        },
+        {
+          "from_node": "Group Input.004",
+          "from_socket": "Altitude",
+          "to_node": "Map Range.009",
+          "to_socket": "From Max"
+        },
+        {
+          "from_node": "Vector Math.002",
+          "from_socket": "Vector",
+          "to_node": "Voronoi Texture.003",
+          "to_socket": "Vector"
+        },
+        {
+          "from_node": "Group Input.014",
+          "from_socket": "Time",
+          "to_node": "Noise Texture",
+          "to_socket": "W"
+        },
+        {
+          "from_node": "Vector Math",
+          "from_socket": "Vector",
+          "to_node": "Noise Texture",
+          "to_socket": "Vector"
+        },
+        {
+          "from_node": "Vector Math.001",
+          "from_socket": "Vector",
+          "to_node": "Voronoi Texture.004",
+          "to_socket": "Vector"
+        },
+        {
+          "from_node": "Group Input.008",
+          "from_socket": "Scale",
+          "to_node": "Vector Math.001",
+          "to_socket": "Vector"
+        },
+        {
+          "from_node": "Group Input.014",
+          "from_socket": "Scale",
+          "to_node": "Vector Math",
+          "to_socket": "Vector"
+        },
+        {
+          "from_node": "Math.016",
+          "from_socket": "Value",
+          "to_node": "Group Output",
+          "to_socket": "Density"
+        },
+        {
+          "from_node": "Math.002",
+          "from_socket": "Value",
+          "to_node": "Math.005",
+          "to_socket": "Value"
+        },
+        {
+          "from_node": "Group Input.013",
+          "from_socket": "Factor",
+          "to_node": "Math.002",
+          "to_socket": "Value"
+        },
+        {
+          "from_node": "Group Input.012",
+          "from_socket": "Scale",
+          "to_node": "Vector Math.002",
+          "to_socket": "Vector"
+        },
+        {
+          "from_node": "Math.005",
+          "from_socket": "Value",
+          "to_node": "Math.016",
+          "to_socket": "Value"
+        },
+        {
+          "from_node": "Map Range.002",
+          "from_socket": "Result",
+          "to_node": "Math.004",
+          "to_socket": "Value"
+        },
+        {
+          "from_node": "Group Input.009",
+          "from_socket": "Factor",
+          "to_node": "Map Range.002",
+          "to_socket": "To Max"
+        },
+        {
+          "from_node": "Math.004",
+          "from_socket": "Value",
+          "to_node": "Math.020",
+          "to_socket": "Value"
+        },
+        {
+          "from_node": "Reroute",
+          "from_socket": "Output",
+          "to_node": "Math.004",
+          "to_socket": "Value"
+        },
+        {
+          "from_node": "Group Input.010",
+          "from_socket": "Factor",
+          "to_node": "Map Range.001",
+          "to_socket": "To Max"
+        },
+        {
+          "from_node": "Group Input.009",
+          "from_socket": "Factor",
+          "to_node": "Math.006",
+          "to_socket": "Value"
+        },
+        {
+          "from_node": "Math.006",
+          "from_socket": "Value",
+          "to_node": "Map Range.002",
+          "to_socket": "To Min"
+        },
+        {
+          "from_node": "Group Input.010",
+          "from_socket": "Factor",
+          "to_node": "Math.007",
+          "to_socket": "Value"
+        },
+        {
+          "from_node": "Math.007",
+          "from_socket": "Value",
+          "to_node": "Map Range.001",
+          "to_socket": "To Min"
+        },
+        {
+          "from_node": "Separate XYZ.004",
+          "from_socket": "Z",
+          "to_node": "Map Range.010",
+          "to_socket": "Value"
+        },
+        {
+          "from_node": "Math.020",
+          "from_socket": "Value",
+          "to_node": "Math.005",
+          "to_socket": "Value"
+        },
+        {
+          "from_node": "Map Range.010",
+          "from_socket": "Result",
+          "to_node": "Math.008",
+          "to_socket": "Value"
+        },
+        {
+          "from_node": "Noise Texture",
+          "from_socket": "Factor",
+          "to_node": "Math.008",
+          "to_socket": "Value"
+        },
+        {
+          "from_node": "Math.009",
+          "from_socket": "Value",
+          "to_node": "Map Range.010",
+          "to_socket": "From Max"
+        },
+        {
+          "from_node": "Group Input.015",
+          "from_socket": "Altitude",
+          "to_node": "Math.009",
+          "to_socket": "Value"
+        },
+        {
+          "from_node": "Math.010",
+          "from_socket": "Value",
+          "to_node": "Map Range.010",
+          "to_socket": "To Min"
+        },
+        {
+          "from_node": "Group Input.015",
+          "from_socket": "Low Altitude Density",
+          "to_node": "Math.010",
+          "to_socket": "Value"
+        },
+        {
+          "from_node": "Group Input.004",
+          "from_socket": "Density",
+          "to_node": "Math.011",
+          "to_socket": "Value"
+        },
+        {
+          "from_node": "Math.012",
+          "from_socket": "Value",
+          "to_node": "Math.003",
+          "to_socket": "Value"
+        },
+        {
+          "from_node": "Map Range.001",
+          "from_socket": "Result",
+          "to_node": "Math.012",
+          "to_socket": "Value"
+        },
+        {
+          "from_node": "Math.011",
+          "from_socket": "Value",
+          "to_node": "Math.001",
+          "to_socket": "Value"
+        },
+        {
+          "from_node": "Map Range.009",
+          "from_socket": "Result",
+          "to_node": "Math.001",
+          "to_socket": "Value"
+        },
+        {
+          "from_node": "Math.001",
+          "from_socket": "Value",
+          "to_node": "Math.016",
+          "to_socket": "Value"
+        },
+        {
+          "from_node": "Group Input.010",
+          "from_socket": "Time",
+          "to_node": "Voronoi Texture.004",
+          "to_socket": "W"
+        },
+        {
+          "from_node": "Group Input.012",
+          "from_socket": "Time",
+          "to_node": "Voronoi Texture.003",
+          "to_socket": "W"
+        },
+        {
+          "from_node": "Math.008",
+          "from_socket": "Value",
+          "to_node": "Reroute.001",
+          "to_socket": "Input"
+        },
+        {
+          "from_node": "Reroute.001",
+          "from_socket": "Output",
+          "to_node": "Math.003",
+          "to_socket": "Value"
+        },
+        {
+          "from_node": "Math.003",
+          "from_socket": "Value",
+          "to_node": "Reroute",
+          "to_socket": "Input"
+        },
+        {
+          "from_node": "Math.013",
+          "from_socket": "Value",
+          "to_node": "Voronoi Texture.003",
+          "to_socket": "Detail"
+        },
+        {
+          "from_node": "Group Input.012",
+          "from_socket": "Detail",
+          "to_node": "Math.013",
+          "to_socket": "Value"
+        },
+        {
+          "from_node": "Group Input.010",
+          "from_socket": "Detail",
+          "to_node": "Voronoi Texture.004",
+          "to_socket": "Detail"
+        },
+        {
+          "from_node": "Texture Coordinate",
+          "from_socket": "Object",
+          "to_node": "Vector Math.002",
+          "to_socket": "Vector"
+        },
+        {
+          "from_node": "Texture Coordinate.001",
+          "from_socket": "Object",
+          "to_node": "Vector Math.001",
+          "to_socket": "Vector"
+        },
+        {
+          "from_node": "Texture Coordinate.002",
+          "from_socket": "Object",
+          "to_node": "Vector Math",
+          "to_socket": "Vector"
+        },
+        {
+          "from_node": "Texture Coordinate.003",
+          "from_socket": "Object",
+          "to_node": "Separate XYZ.004",
+          "to_socket": "Vector"
+        },
+        {
+          "from_node": "Texture Coordinate.004",
+          "from_socket": "Object",
+          "to_node": "Separate XYZ.002",
+          "to_socket": "Vector"
+        },
+        {
+          "from_node": "Texture Coordinate.005",
+          "from_socket": "Object",
+          "to_node": "Separate XYZ.003",
+          "to_socket": "Vector"
+        }
+      ],
+      "group_inputs": [
+        {
+          "name": "Density",
+          "socket_type": "NodeSocketFloat",
+          "default_value": 1.0
+        },
+        {
+          "name": "Low Altitude Density",
+          "socket_type": "NodeSocketFloat",
+          "default_value": 0.20000000298023224
+        },
+        {
+          "name": "Altitude",
+          "socket_type": "NodeSocketFloat",
+          "default_value": 0.5
+        },
+        {
+          "name": "Factor",
+          "socket_type": "NodeSocketFloat",
+          "default_value": 0.800000011920929
+        },
+        {
+          "name": "Scale",
+          "socket_type": "NodeSocketFloat",
+          "default_value": 1.0
+        },
+        {
+          "name": "Time",
+          "socket_type": "NodeSocketFloat",
+          "default_value": 0.0
+        },
+        {
+          "name": "Factor",
+          "socket_type": "NodeSocketFloat",
+          "default_value": 1.0
+        },
+        {
+          "name": "Scale",
+          "socket_type": "NodeSocketFloat",
+          "default_value": 1.0
+        },
+        {
+          "name": "Time",
+          "socket_type": "NodeSocketFloat",
+          "default_value": 0.0
+        },
+        {
+          "name": "Factor",
+          "socket_type": "NodeSocketFloat",
+          "default_value": 1.0
+        },
+        {
+          "name": "Scale",
+          "socket_type": "NodeSocketFloat",
+          "default_value": 1.0
+        },
+        {
+          "name": "Time",
+          "socket_type": "NodeSocketFloat",
+          "default_value": 0.0
+        },
+        {
+          "name": "Detail",
+          "socket_type": "NodeSocketFloat",
+          "default_value": 1.0
+        }
+      ],
+      "group_outputs": [
+        {
+          "name": "Density",
+          "socket_type": "NodeSocketFloat",
+          "default_value": 0.0
+        }
+      ]
+    }
+  ],
+  "world": [
+    {
+      "world": "World",
+      "nodes": [
+        {
+          "name": "World Output",
+          "type": "OUTPUT_WORLD",
+          "bl_idname": "ShaderNodeOutputWorld",
+          "label": "",
+          "inputs": {
+            "Surface": {
+              "type": "SHADER",
+              "default_value": null
+            },
+            "Volume": {
+              "type": "SHADER",
+              "default_value": null
+            }
+          }
+        },
+        {
+          "name": "Background",
+          "type": "BACKGROUND",
+          "bl_idname": "ShaderNodeBackground",
+          "label": "",
+          "inputs": {
+            "Color": {
+              "type": "RGBA",
+              "default_value": [
+                0.07499998807907104,
+                0.14500021934509277,
+                0.25,
+                1.0
+              ]
+            },
+            "Strength": {
+              "type": "VALUE",
+              "default_value": 1.0
+            },
+            "Weight": {
+              "type": "VALUE",
+              "default_value": 0.0
+            }
+          }
+        }
+      ],
+      "links": [
+        {
+          "from_node": "Background",
+          "from_socket": "Background",
+          "to_node": "World Output",
+          "to_socket": "Surface"
+        }
+      ]
+    }
+  ]
+}
