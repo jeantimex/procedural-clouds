@@ -9,7 +9,14 @@ struct Camera {
 };
 
 struct Params {
-  time : f32,
+  time            : f32,
+  density         : f32,
+  lowAltDensity   : f32,
+  altitude        : f32,
+  factor          : f32,
+  scale           : f32,
+  detail          : f32,
+  _pad            : f32,
 };
 
 @group(0) @binding(0) var<uniform> camera : Camera;
@@ -294,6 +301,122 @@ fn fractal_voronoi_f1_4d(coord : vec4f, scale : f32, detail : f32,
 }
 
 // ============================================================
+// Utility: clamped linear map range (matches Blender Map Range)
+// ============================================================
+
+fn mapRange(value : f32, fromMin : f32, fromMax : f32, toMin : f32, toMax : f32) -> f32 {
+  let t = (value - fromMin) / (fromMax - fromMin);
+  return clamp(mix(toMin, toMax, t), min(toMin, toMax), max(toMin, toMax));
+}
+
+// ============================================================
+// 5-Stage Cloud Density Function
+// Ported from Blender "Procedural Clouds Shader" node group
+//
+// In Blender Z is up. In our box Y is up (box: XZ [-1,1], Y [0,1]).
+// All "Object" coordinates = pos in world space.
+// Blender Z → our Y for altitude calculations.
+// ============================================================
+
+fn cloudDensity(pos : vec3f) -> f32 {
+  let altitude     = params.altitude;
+  let factor       = params.factor;
+  let scale        = params.scale;
+  let time         = params.time;
+  let detail       = params.detail;
+  let lowAltDens   = params.lowAltDensity;
+  let densityParam = params.density;
+
+  // Y is our vertical axis (0..1 in the box)
+  let Z = pos.y;
+
+  // ----------------------------------------------------------
+  // Stage 1: Altitude mask modulated by low-frequency noise
+  // ----------------------------------------------------------
+
+  // Math.009: altitude / 5.0
+  let altDiv5 = altitude / 5.0;
+
+  // Math.010: lowAltDens * (-1) + 1 = 1 - lowAltDens
+  let altToMin = 1.0 - lowAltDens;
+
+  // Map Range.010: Z ∈ [0, altDiv5] → [1-lowAltDens, 1.0], clamped
+  let altitudeProfile = mapRange(Z, 0.0, altDiv5, altToMin, 1.0);
+
+  // Noise Texture (4D): Object/Scale, W=time, scale=2, detail=0
+  let noiseCoord = vec4f(pos / scale, time) * 2.0;
+  let noiseFac = noise_fbm_4d(noiseCoord, 0.0, 0.0, 0.0);
+
+  // Math.008: altitude_profile * noise, clamped
+  let altitudeMask = clamp(altitudeProfile * noiseFac, 0.0, 1.0);
+
+  // ----------------------------------------------------------
+  // Stage 2: Large-scale Voronoi cells (scale=5, detail=input)
+  // ----------------------------------------------------------
+
+  // Voronoi Texture.004: Object/Scale, W=time
+  let voronoi1Coord = vec4f(pos / scale, time);
+  let v1dist = fractal_voronoi_f1_4d(voronoi1Coord, 5.0, detail, 0.5, 3.0, 1.0, true);
+
+  // Map Range.001: voronoi [0, 0.75] → [Factor*(-0.4), Factor], clamped
+  let v1mapped = mapRange(v1dist, 0.0, 0.75, factor * (-0.4), factor);
+
+  // Math.012: v1mapped * 0.5, clamped
+  let v1scaled = clamp(v1mapped * 0.5, 0.0, 1.0);
+
+  // Math.003: altitudeMask + v1scaled, clamped
+  let accumulated1 = clamp(altitudeMask + v1scaled, 0.0, 1.0);
+
+  // ----------------------------------------------------------
+  // Stage 3: Medium-detail Voronoi (scale=2, detail=input*5)
+  // ----------------------------------------------------------
+
+  // Voronoi Texture.003: Object/Scale, W=time
+  let voronoi2Coord = vec4f(pos / scale, time);
+  let v2detail = detail * 5.0;
+  let v2dist = fractal_voronoi_f1_4d(voronoi2Coord, 2.0, v2detail, 0.75, 2.5, 1.0, true);
+
+  // Map Range.002: voronoi [0, 1] → [Factor*(-0.25), Factor], clamped
+  let v2mapped = mapRange(v2dist, 0.0, 1.0, factor * (-0.25), factor);
+
+  // Math.004: accumulated1 + v2mapped, clamped
+  let accumulated2 = clamp(accumulated1 + v2mapped, 0.0, 1.0);
+
+  // ----------------------------------------------------------
+  // Stage 4: Lower-altitude cutoff
+  // ----------------------------------------------------------
+
+  // Map Range.008: Z from [altitude*scale, 0.0] → [0, 1], clamped
+  // This creates a mask that is 1 at bottom and 0 at altitude*scale
+  let lowerMask = mapRange(Z, altitude * scale, 0.0, 0.0, 1.0);
+
+  // Math.020: accumulated2 - lowerMask, clamped
+  let shaped = clamp(accumulated2 - lowerMask, 0.0, 1.0);
+
+  // Math.002: factor * (-1) + 1 = 1 - factor
+  let factorComplement = 1.0 - factor;
+
+  // Math.005: shaped - factorComplement, clamped
+  let finalShaped = clamp(shaped - factorComplement, 0.0, 1.0);
+
+  // ----------------------------------------------------------
+  // Stage 5: Final density scaling + max-altitude rolloff
+  // ----------------------------------------------------------
+
+  // Map Range.009: Z ∈ [0, altitude] → [0, 1], clamped
+  let altitudeRamp = mapRange(Z, 0.0, altitude, 0.0, 1.0);
+
+  // Math.011: densityParam * 500.0
+  // Math.001: (densityParam * 500) * altitudeRamp
+  // Math.016: finalShaped * (densityParam * 500 * altitudeRamp)
+  let finalDensity = finalShaped * densityParam * 500.0 * altitudeRamp;
+
+  // Return finalShaped for debug visualization (0..1 range).
+  // Switch to finalDensity when ray marching is implemented.
+  return finalShaped;
+}
+
+// ============================================================
 // Ray-Box intersection (AABB slab method)
 // ============================================================
 
@@ -318,7 +441,7 @@ fn intersectBox(ro : vec3f, rd : vec3f) -> HitInfo {
 }
 
 // ============================================================
-// Fragment — visualize noise on the bounding box
+// Fragment — visualize cloud density as grayscale on the box
 // ============================================================
 
 const BG_COLOR = vec3f(0.075, 0.145, 0.25);
@@ -346,17 +469,7 @@ fn fs(@location(0) uv : vec2f) -> @location(0) vec4f {
   let tEntry = max(hit.tNear, 0.0);
   let entryPos = ro + rd * tEntry;
 
-  // Sample position for noise (use entry point into box)
-  let p = entryPos;
-  let t = params.time;
-
-  // Left half: Perlin fBM noise (scale=2, detail=0, like Blender Stage 1)
-  // Right half: Voronoi F1 (scale=5, detail=1, like Blender Stage 2)
-  if (uv.x < 0.0) {
-    let n = noise_fbm_4d(vec4f(p * 2.0, t), 0.0, 0.0, 0.0);
-    return vec4f(vec3f(n), 1.0);
-  } else {
-    let v = fractal_voronoi_f1_4d(vec4f(p, t), 5.0, 1.0, 0.5, 3.0, 1.0, true);
-    return vec4f(vec3f(v), 1.0);
-  }
+  // Sample cloud shape at entry point (already 0..1 from finalShaped)
+  let d = cloudDensity(entryPos);
+  return vec4f(vec3f(d), 1.0);
 }

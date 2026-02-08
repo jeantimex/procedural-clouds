@@ -1,0 +1,1234 @@
+{
+  "Math.016": {
+    "type": "MATH",
+    "inputs": [
+      {
+        "index": 0,
+        "name": "Value",
+        "default": 0.5,
+        "connected": true
+      },
+      {
+        "index": 1,
+        "name": "Value",
+        "default": 1.0,
+        "connected": true
+      },
+      {
+        "index": 2,
+        "name": "Value",
+        "default": 0.5,
+        "connected": false
+      }
+    ],
+    "operation": "MULTIPLY",
+    "use_clamp": false
+  },
+  "Map Range.008": {
+    "type": "MAP_RANGE",
+    "inputs": [
+      {
+        "index": 0,
+        "name": "Value",
+        "default": 1.0,
+        "connected": true
+      },
+      {
+        "index": 1,
+        "name": "From Min",
+        "default": 5.0,
+        "connected": true
+      },
+      {
+        "index": 2,
+        "name": "From Max",
+        "default": 0.0,
+        "connected": false
+      },
+      {
+        "index": 3,
+        "name": "To Min",
+        "default": 0.0,
+        "connected": false
+      },
+      {
+        "index": 4,
+        "name": "To Max",
+        "default": 1.0,
+        "connected": false
+      },
+      {
+        "index": 5,
+        "name": "Steps",
+        "default": 4.0,
+        "connected": false
+      },
+      {
+        "index": 6,
+        "name": "Vector",
+        "default": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "connected": false
+      },
+      {
+        "index": 7,
+        "name": "From Min",
+        "default": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "connected": false
+      },
+      {
+        "index": 8,
+        "name": "From Max",
+        "default": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "connected": false
+      },
+      {
+        "index": 9,
+        "name": "To Min",
+        "default": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "connected": false
+      },
+      {
+        "index": 10,
+        "name": "To Max",
+        "default": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "connected": false
+      },
+      {
+        "index": 11,
+        "name": "Steps",
+        "default": [
+          4.0,
+          4.0,
+          4.0
+        ],
+        "connected": false
+      }
+    ],
+    "clamp": true
+  },
+  "Math.020": {
+    "type": "MATH",
+    "inputs": [
+      {
+        "index": 0,
+        "name": "Value",
+        "default": 0.5,
+        "connected": true
+      },
+      {
+        "index": 1,
+        "name": "Value",
+        "default": 0.7299998998641968,
+        "connected": true
+      },
+      {
+        "index": 2,
+        "name": "Value",
+        "default": 0.5,
+        "connected": false
+      }
+    ],
+    "operation": "SUBTRACT",
+    "use_clamp": true
+  },
+  "Map Range.009": {
+    "type": "MAP_RANGE",
+    "inputs": [
+      {
+        "index": 0,
+        "name": "Value",
+        "default": 1.0,
+        "connected": true
+      },
+      {
+        "index": 1,
+        "name": "From Min",
+        "default": 0.0,
+        "connected": false
+      },
+      {
+        "index": 2,
+        "name": "From Max",
+        "default": 10.309999465942383,
+        "connected": true
+      },
+      {
+        "index": 3,
+        "name": "To Min",
+        "default": 0.0,
+        "connected": false
+      },
+      {
+        "index": 4,
+        "name": "To Max",
+        "default": 1.0,
+        "connected": false
+      },
+      {
+        "index": 5,
+        "name": "Steps",
+        "default": 4.0,
+        "connected": false
+      },
+      {
+        "index": 6,
+        "name": "Vector",
+        "default": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "connected": false
+      },
+      {
+        "index": 7,
+        "name": "From Min",
+        "default": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "connected": false
+      },
+      {
+        "index": 8,
+        "name": "From Max",
+        "default": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "connected": false
+      },
+      {
+        "index": 9,
+        "name": "To Min",
+        "default": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "connected": false
+      },
+      {
+        "index": 10,
+        "name": "To Max",
+        "default": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "connected": false
+      },
+      {
+        "index": 11,
+        "name": "Steps",
+        "default": [
+          4.0,
+          4.0,
+          4.0
+        ],
+        "connected": false
+      }
+    ],
+    "clamp": true
+  },
+  "Map Range.002": {
+    "type": "MAP_RANGE",
+    "inputs": [
+      {
+        "index": 0,
+        "name": "Value",
+        "default": 1.0,
+        "connected": true
+      },
+      {
+        "index": 1,
+        "name": "From Min",
+        "default": 0.0,
+        "connected": false
+      },
+      {
+        "index": 2,
+        "name": "From Max",
+        "default": 1.0,
+        "connected": false
+      },
+      {
+        "index": 3,
+        "name": "To Min",
+        "default": 0.1199999749660492,
+        "connected": true
+      },
+      {
+        "index": 4,
+        "name": "To Max",
+        "default": 1.0,
+        "connected": true
+      },
+      {
+        "index": 5,
+        "name": "Steps",
+        "default": 4.0,
+        "connected": false
+      },
+      {
+        "index": 6,
+        "name": "Vector",
+        "default": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "connected": false
+      },
+      {
+        "index": 7,
+        "name": "From Min",
+        "default": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "connected": false
+      },
+      {
+        "index": 8,
+        "name": "From Max",
+        "default": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "connected": false
+      },
+      {
+        "index": 9,
+        "name": "To Min",
+        "default": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "connected": false
+      },
+      {
+        "index": 10,
+        "name": "To Max",
+        "default": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "connected": false
+      },
+      {
+        "index": 11,
+        "name": "Steps",
+        "default": [
+          4.0,
+          4.0,
+          4.0
+        ],
+        "connected": false
+      }
+    ],
+    "clamp": true
+  },
+  "Map Range.001": {
+    "type": "MAP_RANGE",
+    "inputs": [
+      {
+        "index": 0,
+        "name": "Value",
+        "default": 1.0,
+        "connected": true
+      },
+      {
+        "index": 1,
+        "name": "From Min",
+        "default": 0.0,
+        "connected": false
+      },
+      {
+        "index": 2,
+        "name": "From Max",
+        "default": 0.75,
+        "connected": false
+      },
+      {
+        "index": 3,
+        "name": "To Min",
+        "default": -0.5099999904632568,
+        "connected": true
+      },
+      {
+        "index": 4,
+        "name": "To Max",
+        "default": 0.0,
+        "connected": true
+      },
+      {
+        "index": 5,
+        "name": "Steps",
+        "default": 4.0,
+        "connected": false
+      },
+      {
+        "index": 6,
+        "name": "Vector",
+        "default": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "connected": false
+      },
+      {
+        "index": 7,
+        "name": "From Min",
+        "default": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "connected": false
+      },
+      {
+        "index": 8,
+        "name": "From Max",
+        "default": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "connected": false
+      },
+      {
+        "index": 9,
+        "name": "To Min",
+        "default": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "connected": false
+      },
+      {
+        "index": 10,
+        "name": "To Max",
+        "default": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "connected": false
+      },
+      {
+        "index": 11,
+        "name": "Steps",
+        "default": [
+          4.0,
+          4.0,
+          4.0
+        ],
+        "connected": false
+      }
+    ],
+    "clamp": true
+  },
+  "Math": {
+    "type": "MATH",
+    "inputs": [
+      {
+        "index": 0,
+        "name": "Value",
+        "default": 0.5,
+        "connected": true
+      },
+      {
+        "index": 1,
+        "name": "Value",
+        "default": 0.5,
+        "connected": true
+      },
+      {
+        "index": 2,
+        "name": "Value",
+        "default": 0.5,
+        "connected": false
+      }
+    ],
+    "operation": "MULTIPLY",
+    "use_clamp": false
+  },
+  "Vector Math": {
+    "type": "VECT_MATH",
+    "inputs": [
+      {
+        "index": 0,
+        "name": "Vector",
+        "default": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "connected": true
+      },
+      {
+        "index": 1,
+        "name": "Vector",
+        "default": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "connected": true
+      },
+      {
+        "index": 2,
+        "name": "Vector",
+        "default": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "connected": false
+      },
+      {
+        "index": 3,
+        "name": "Scale",
+        "default": 1.0,
+        "connected": false
+      }
+    ],
+    "operation": "DIVIDE"
+  },
+  "Vector Math.001": {
+    "type": "VECT_MATH",
+    "inputs": [
+      {
+        "index": 0,
+        "name": "Vector",
+        "default": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "connected": true
+      },
+      {
+        "index": 1,
+        "name": "Vector",
+        "default": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "connected": true
+      },
+      {
+        "index": 2,
+        "name": "Vector",
+        "default": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "connected": false
+      },
+      {
+        "index": 3,
+        "name": "Scale",
+        "default": 1.0,
+        "connected": false
+      }
+    ],
+    "operation": "DIVIDE"
+  },
+  "Math.005": {
+    "type": "MATH",
+    "inputs": [
+      {
+        "index": 0,
+        "name": "Value",
+        "default": 0.5,
+        "connected": true
+      },
+      {
+        "index": 1,
+        "name": "Value",
+        "default": 0.8999999761581421,
+        "connected": true
+      },
+      {
+        "index": 2,
+        "name": "Value",
+        "default": 0.5,
+        "connected": false
+      }
+    ],
+    "operation": "SUBTRACT",
+    "use_clamp": true
+  },
+  "Math.002": {
+    "type": "MATH",
+    "inputs": [
+      {
+        "index": 0,
+        "name": "Value",
+        "default": 0.5,
+        "connected": true
+      },
+      {
+        "index": 1,
+        "name": "Value",
+        "default": -1.0,
+        "connected": false
+      },
+      {
+        "index": 2,
+        "name": "Value",
+        "default": 1.0,
+        "connected": false
+      }
+    ],
+    "operation": "MULTIPLY_ADD",
+    "use_clamp": false
+  },
+  "Math.003": {
+    "type": "MATH",
+    "inputs": [
+      {
+        "index": 0,
+        "name": "Value",
+        "default": 0.5,
+        "connected": true
+      },
+      {
+        "index": 1,
+        "name": "Value",
+        "default": 0.5,
+        "connected": true
+      },
+      {
+        "index": 2,
+        "name": "Value",
+        "default": 0.5,
+        "connected": false
+      }
+    ],
+    "operation": "ADD",
+    "use_clamp": true
+  },
+  "Vector Math.002": {
+    "type": "VECT_MATH",
+    "inputs": [
+      {
+        "index": 0,
+        "name": "Vector",
+        "default": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "connected": true
+      },
+      {
+        "index": 1,
+        "name": "Vector",
+        "default": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "connected": true
+      },
+      {
+        "index": 2,
+        "name": "Vector",
+        "default": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "connected": false
+      },
+      {
+        "index": 3,
+        "name": "Scale",
+        "default": 1.0,
+        "connected": false
+      }
+    ],
+    "operation": "DIVIDE"
+  },
+  "Math.004": {
+    "type": "MATH",
+    "inputs": [
+      {
+        "index": 0,
+        "name": "Value",
+        "default": 0.5,
+        "connected": true
+      },
+      {
+        "index": 1,
+        "name": "Value",
+        "default": 0.5,
+        "connected": true
+      },
+      {
+        "index": 2,
+        "name": "Value",
+        "default": 0.5,
+        "connected": false
+      }
+    ],
+    "operation": "ADD",
+    "use_clamp": true
+  },
+  "Math.001": {
+    "type": "MATH",
+    "inputs": [
+      {
+        "index": 0,
+        "name": "Value",
+        "default": 0.5,
+        "connected": true
+      },
+      {
+        "index": 1,
+        "name": "Value",
+        "default": 0.5,
+        "connected": true
+      },
+      {
+        "index": 2,
+        "name": "Value",
+        "default": 0.5,
+        "connected": false
+      }
+    ],
+    "operation": "MULTIPLY",
+    "use_clamp": false
+  },
+  "Math.006": {
+    "type": "MATH",
+    "inputs": [
+      {
+        "index": 0,
+        "name": "Value",
+        "default": 0.5,
+        "connected": true
+      },
+      {
+        "index": 1,
+        "name": "Value",
+        "default": -0.25,
+        "connected": false
+      },
+      {
+        "index": 2,
+        "name": "Value",
+        "default": 0.5,
+        "connected": false
+      }
+    ],
+    "operation": "MULTIPLY",
+    "use_clamp": false
+  },
+  "Math.007": {
+    "type": "MATH",
+    "inputs": [
+      {
+        "index": 0,
+        "name": "Value",
+        "default": 0.5,
+        "connected": true
+      },
+      {
+        "index": 1,
+        "name": "Value",
+        "default": -0.4000000059604645,
+        "connected": false
+      },
+      {
+        "index": 2,
+        "name": "Value",
+        "default": 0.5,
+        "connected": false
+      }
+    ],
+    "operation": "MULTIPLY",
+    "use_clamp": false
+  },
+  "Map Range.010": {
+    "type": "MAP_RANGE",
+    "inputs": [
+      {
+        "index": 0,
+        "name": "Value",
+        "default": 1.0,
+        "connected": true
+      },
+      {
+        "index": 1,
+        "name": "From Min",
+        "default": 0.0,
+        "connected": false
+      },
+      {
+        "index": 2,
+        "name": "From Max",
+        "default": 0.12000000476837158,
+        "connected": true
+      },
+      {
+        "index": 3,
+        "name": "To Min",
+        "default": 1.0,
+        "connected": true
+      },
+      {
+        "index": 4,
+        "name": "To Max",
+        "default": 1.0,
+        "connected": false
+      },
+      {
+        "index": 5,
+        "name": "Steps",
+        "default": 4.0,
+        "connected": false
+      },
+      {
+        "index": 6,
+        "name": "Vector",
+        "default": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "connected": false
+      },
+      {
+        "index": 7,
+        "name": "From Min",
+        "default": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "connected": false
+      },
+      {
+        "index": 8,
+        "name": "From Max",
+        "default": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "connected": false
+      },
+      {
+        "index": 9,
+        "name": "To Min",
+        "default": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "connected": false
+      },
+      {
+        "index": 10,
+        "name": "To Max",
+        "default": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "connected": false
+      },
+      {
+        "index": 11,
+        "name": "Steps",
+        "default": [
+          4.0,
+          4.0,
+          4.0
+        ],
+        "connected": false
+      }
+    ],
+    "clamp": true
+  },
+  "Math.008": {
+    "type": "MATH",
+    "inputs": [
+      {
+        "index": 0,
+        "name": "Value",
+        "default": 0.5,
+        "connected": true
+      },
+      {
+        "index": 1,
+        "name": "Value",
+        "default": 0.5,
+        "connected": true
+      },
+      {
+        "index": 2,
+        "name": "Value",
+        "default": 0.5,
+        "connected": false
+      }
+    ],
+    "operation": "MULTIPLY",
+    "use_clamp": true
+  },
+  "Math.009": {
+    "type": "MATH",
+    "inputs": [
+      {
+        "index": 0,
+        "name": "Value",
+        "default": 0.5,
+        "connected": true
+      },
+      {
+        "index": 1,
+        "name": "Value",
+        "default": 5.0,
+        "connected": false
+      },
+      {
+        "index": 2,
+        "name": "Value",
+        "default": 0.5,
+        "connected": false
+      }
+    ],
+    "operation": "DIVIDE",
+    "use_clamp": false
+  },
+  "Math.010": {
+    "type": "MATH",
+    "inputs": [
+      {
+        "index": 0,
+        "name": "Value",
+        "default": 0.5,
+        "connected": true
+      },
+      {
+        "index": 1,
+        "name": "Value",
+        "default": -1.0,
+        "connected": false
+      },
+      {
+        "index": 2,
+        "name": "Value",
+        "default": 1.0,
+        "connected": false
+      }
+    ],
+    "operation": "MULTIPLY_ADD",
+    "use_clamp": false
+  },
+  "Math.011": {
+    "type": "MATH",
+    "inputs": [
+      {
+        "index": 0,
+        "name": "Value",
+        "default": 0.5,
+        "connected": true
+      },
+      {
+        "index": 1,
+        "name": "Value",
+        "default": 500.0,
+        "connected": false
+      },
+      {
+        "index": 2,
+        "name": "Value",
+        "default": 0.5,
+        "connected": false
+      }
+    ],
+    "operation": "MULTIPLY",
+    "use_clamp": false
+  },
+  "Math.012": {
+    "type": "MATH",
+    "inputs": [
+      {
+        "index": 0,
+        "name": "Value",
+        "default": 0.5,
+        "connected": true
+      },
+      {
+        "index": 1,
+        "name": "Value",
+        "default": 0.5,
+        "connected": false
+      },
+      {
+        "index": 2,
+        "name": "Value",
+        "default": 0.5,
+        "connected": false
+      }
+    ],
+    "operation": "MULTIPLY",
+    "use_clamp": true
+  },
+  "Math.013": {
+    "type": "MATH",
+    "inputs": [
+      {
+        "index": 0,
+        "name": "Value",
+        "default": 0.5,
+        "connected": true
+      },
+      {
+        "index": 1,
+        "name": "Value",
+        "default": 5.0,
+        "connected": false
+      },
+      {
+        "index": 2,
+        "name": "Value",
+        "default": 0.5,
+        "connected": false
+      }
+    ],
+    "operation": "MULTIPLY",
+    "use_clamp": false
+  },
+  "Voronoi Texture.003": {
+    "type": "TEX_VORONOI",
+    "inputs": [
+      {
+        "index": 0,
+        "name": "Vector",
+        "default": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "connected": true
+      },
+      {
+        "index": 1,
+        "name": "W",
+        "default": 0.0,
+        "connected": true
+      },
+      {
+        "index": 2,
+        "name": "Scale",
+        "default": 2.0,
+        "connected": false
+      },
+      {
+        "index": 3,
+        "name": "Detail",
+        "default": 5.0,
+        "connected": true
+      },
+      {
+        "index": 4,
+        "name": "Roughness",
+        "default": 0.75,
+        "connected": false
+      },
+      {
+        "index": 5,
+        "name": "Lacunarity",
+        "default": 2.5,
+        "connected": false
+      },
+      {
+        "index": 6,
+        "name": "Smoothness",
+        "default": 1.0,
+        "connected": false
+      },
+      {
+        "index": 7,
+        "name": "Exponent",
+        "default": 0.5,
+        "connected": false
+      },
+      {
+        "index": 8,
+        "name": "Randomness",
+        "default": 1.0,
+        "connected": false
+      }
+    ],
+    "dimensions": "4D",
+    "feature": "F1",
+    "distance": "EUCLIDEAN"
+  },
+  "Voronoi Texture.004": {
+    "type": "TEX_VORONOI",
+    "inputs": [
+      {
+        "index": 0,
+        "name": "Vector",
+        "default": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "connected": true
+      },
+      {
+        "index": 1,
+        "name": "W",
+        "default": 0.0,
+        "connected": true
+      },
+      {
+        "index": 2,
+        "name": "Scale",
+        "default": 5.0,
+        "connected": false
+      },
+      {
+        "index": 3,
+        "name": "Detail",
+        "default": 1.0,
+        "connected": true
+      },
+      {
+        "index": 4,
+        "name": "Roughness",
+        "default": 0.5,
+        "connected": false
+      },
+      {
+        "index": 5,
+        "name": "Lacunarity",
+        "default": 3.0,
+        "connected": false
+      },
+      {
+        "index": 6,
+        "name": "Smoothness",
+        "default": 1.0,
+        "connected": false
+      },
+      {
+        "index": 7,
+        "name": "Exponent",
+        "default": 0.5,
+        "connected": false
+      },
+      {
+        "index": 8,
+        "name": "Randomness",
+        "default": 1.0,
+        "connected": false
+      }
+    ],
+    "dimensions": "4D",
+    "feature": "F1",
+    "distance": "EUCLIDEAN"
+  },
+  "Noise Texture": {
+    "type": "TEX_NOISE",
+    "inputs": [
+      {
+        "index": 0,
+        "name": "Vector",
+        "default": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "connected": true
+      },
+      {
+        "index": 1,
+        "name": "W",
+        "default": 0.0,
+        "connected": true
+      },
+      {
+        "index": 2,
+        "name": "Scale",
+        "default": 2.0,
+        "connected": false
+      },
+      {
+        "index": 3,
+        "name": "Detail",
+        "default": 0.0,
+        "connected": false
+      },
+      {
+        "index": 4,
+        "name": "Roughness",
+        "default": 0.0,
+        "connected": false
+      },
+      {
+        "index": 5,
+        "name": "Lacunarity",
+        "default": 0.0,
+        "connected": false
+      },
+      {
+        "index": 6,
+        "name": "Offset",
+        "default": 0.0,
+        "connected": false
+      },
+      {
+        "index": 7,
+        "name": "Gain",
+        "default": 1.0,
+        "connected": false
+      },
+      {
+        "index": 8,
+        "name": "Distortion",
+        "default": 0.0,
+        "connected": false
+      }
+    ],
+    "dimensions": "4D"
+  }
+}

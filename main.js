@@ -135,9 +135,9 @@ async function initWebGPU() {
   });
 
   // --- Params uniform buffer ---
-  // Layout: f32 time (4 bytes), padded to 16 bytes for alignment
+  // Layout: time, density, lowAltDensity, altitude, factor, scale, detail, _pad = 8 x f32 = 32 bytes
   const paramsBuffer = device.createBuffer({
-    size: 16,
+    size: 32,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
 
@@ -183,8 +183,17 @@ async function initWebGPU() {
     cameraData.set(eye, 16);
     device.queue.writeBuffer(cameraBuffer, 0, cameraData);
 
-    // Write params uniform: time
-    device.queue.writeBuffer(paramsBuffer, 0, new Float32Array([elapsed]));
+    // Write params: time, density, lowAltDensity, altitude, factor, scale, detail, _pad
+    device.queue.writeBuffer(paramsBuffer, 0, new Float32Array([
+      elapsed * 0.1,  // time (slow animation)
+      1.0,            // density
+      0.2,            // lowAltDensity
+      0.5,            // altitude
+      1.0,            // factor
+      1.0,            // scale
+      1.0,            // detail
+      0.0,            // _pad
+    ]));
 
     const commandEncoder = device.createCommandEncoder();
     const textureView = context.getCurrentTexture().createView();
