@@ -150,18 +150,83 @@ async function initWebGPU() {
   });
 
   // --- Camera setup ---
-  const eye = [2.0, 1.5, 2.0];
-  const target = [0.0, 0.4, 0.0];
+  let camTheta = Math.PI / 4;
+  let camPhi = 0.5;
+  let camDist = 6.0;
+  const target = [0.0, 0.5, 0.0];
   const up = [0.0, 1.0, 0.0];
 
+  // Mouse interaction
+  let isDragging = false;
+  let lastMouse = [0, 0];
+
+  canvas.addEventListener('pointerdown', e => {
+    isDragging = true;
+    lastMouse = [e.clientX, e.clientY];
+    canvas.setPointerCapture(e.pointerId);
+  });
+
+  canvas.addEventListener('pointermove', e => {
+    if (!isDragging) return;
+    const dx = e.clientX - lastMouse[0];
+    const dy = e.clientY - lastMouse[1];
+    camTheta -= dx * 0.005;
+    camPhi = Math.max(0.1, Math.min(1.4, camPhi + dy * 0.005));
+    lastMouse = [e.clientX, e.clientY];
+  });
+
+  canvas.addEventListener('pointerup', e => {
+    isDragging = false;
+    canvas.releasePointerCapture(e.pointerId);
+  });
+
+  canvas.addEventListener('wheel', e => {
+    camDist = Math.max(2.0, Math.min(20.0, camDist + e.deltaY * 0.005));
+    e.preventDefault();
+  }, { passive: false });
+
   function resize() {
-    const dpr = window.devicePixelRatio || 1;
+    const dpr = 1.0; 
     canvas.width = canvas.clientWidth * dpr;
     canvas.height = canvas.clientHeight * dpr;
   }
 
   window.addEventListener('resize', resize);
   resize();
+
+  // --- UI Controls ---
+  const controls = {
+    density: document.getElementById('density'),
+    coverage: document.getElementById('coverage'),
+    scale: document.getElementById('scale'),
+    altitude: document.getElementById('altitude'),
+    detail: document.getElementById('detail'),
+    windSpeed: document.getElementById('windSpeed'),
+  };
+
+  const values = {
+    density: document.getElementById('v-density'),
+    coverage: document.getElementById('v-coverage'),
+    scale: document.getElementById('v-scale'),
+    altitude: document.getElementById('v-altitude'),
+    detail: document.getElementById('v-detail'),
+    windSpeed: document.getElementById('v-windSpeed'),
+  };
+
+  // Set better defaults on sliders
+  controls.density.value = 3.35;
+  controls.coverage.value = 0.28;
+  controls.scale.value = 0.95;
+  controls.altitude.value = 0.75;
+  controls.detail.value = 12.50;
+  controls.windSpeed.value = 0.80;
+
+  Object.keys(controls).forEach(key => {
+    controls[key].addEventListener('input', () => {
+      values[key].textContent = parseFloat(controls[key].value).toFixed(2);
+    });
+    values[key].textContent = parseFloat(controls[key].value).toFixed(2);
+  });
 
   // --- Render loop ---
   const startTime = performance.now();
@@ -170,30 +235,39 @@ async function initWebGPU() {
     resize();
 
     const elapsed = (performance.now() - startTime) / 1000.0;
+    const windSpeed = parseFloat(controls.windSpeed.value);
+
+    // Orbit camera
+    const eye = [
+      camDist * Math.cos(camPhi) * Math.sin(camTheta),
+      camDist * Math.sin(camPhi),
+      camDist * Math.cos(camPhi) * Math.cos(camTheta)
+    ];
 
     const aspect = canvas.width / canvas.height;
-    const proj = mat4Perspective(Math.PI / 4, aspect, 0.01, 100.0);
+    const proj = mat4Perspective(Math.PI / 4, aspect, 0.1, 100.0);
     const view = mat4LookAt(eye, target, up);
     const viewProj = mat4Multiply(proj, view);
     const invViewProj = mat4Invert(viewProj);
 
-    // Write camera uniform: invViewProj (64B) + position (12B) + pad (4B)
+    // Write camera uniform
     const cameraData = new Float32Array(20);
     cameraData.set(invViewProj, 0);
     cameraData.set(eye, 16);
     device.queue.writeBuffer(cameraBuffer, 0, cameraData);
 
-    // Write params: time, density, lowAltDensity, altitude, factor, scale, detail, _pad
-    device.queue.writeBuffer(paramsBuffer, 0, new Float32Array([
-      elapsed * 0.1,  // time (slow animation)
-      1.0,            // density
-      0.2,            // lowAltDensity
-      0.5,            // altitude
-      1.0,            // factor
-      1.0,            // scale
-      1.0,            // detail
-      0.0,            // _pad
-    ]));
+    // Sync params with UI
+    const paramsData = new Float32Array([
+      elapsed * windSpeed,
+      parseFloat(controls.density.value) * 0.01,
+      0.05, 
+      parseFloat(controls.altitude.value),
+      parseFloat(controls.coverage.value),
+      parseFloat(controls.scale.value),
+      parseFloat(controls.detail.value),
+      0.0  
+    ]);
+    device.queue.writeBuffer(paramsBuffer, 0, paramsData);
 
     const commandEncoder = device.createCommandEncoder();
     const textureView = context.getCurrentTexture().createView();
@@ -202,7 +276,8 @@ async function initWebGPU() {
       colorAttachments: [
         {
           view: textureView,
-          loadOp: 'load',
+          loadOp: 'clear',
+          clearValue: { r: 0.075, g: 0.145, b: 0.25, a: 1.0 },
           storeOp: 'store',
         },
       ],
