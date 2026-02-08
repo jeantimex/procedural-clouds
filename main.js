@@ -134,10 +134,18 @@ async function initWebGPU() {
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
 
+  // --- Params uniform buffer ---
+  // Layout: f32 time (4 bytes), padded to 16 bytes for alignment
+  const paramsBuffer = device.createBuffer({
+    size: 16,
+    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+  });
+
   const bindGroup = device.createBindGroup({
     layout: pipeline.getBindGroupLayout(0),
     entries: [
       { binding: 0, resource: { buffer: cameraBuffer } },
+      { binding: 1, resource: { buffer: paramsBuffer } },
     ],
   });
 
@@ -156,8 +164,12 @@ async function initWebGPU() {
   resize();
 
   // --- Render loop ---
+  const startTime = performance.now();
+
   function frame() {
     resize();
+
+    const elapsed = (performance.now() - startTime) / 1000.0;
 
     const aspect = canvas.width / canvas.height;
     const proj = mat4Perspective(Math.PI / 4, aspect, 0.01, 100.0);
@@ -170,6 +182,9 @@ async function initWebGPU() {
     cameraData.set(invViewProj, 0);
     cameraData.set(eye, 16);
     device.queue.writeBuffer(cameraBuffer, 0, cameraData);
+
+    // Write params uniform: time
+    device.queue.writeBuffer(paramsBuffer, 0, new Float32Array([elapsed]));
 
     const commandEncoder = device.createCommandEncoder();
     const textureView = context.getCurrentTexture().createView();
