@@ -14,6 +14,7 @@ struct Params {
   scale_pack  : vec4f, // factorShaper, scaleAlt, scaleNoise, scaleVoronoi1
   extra_pack  : vec4f, // scaleVoronoi2, detail, rayMarchSteps, skipLight
   cache_pack  : vec4f, // cacheBlend, lightMarchSteps, shadowDarkness, sunIntensity
+  bounds_pack : vec4f, // cloudHeight, _pad1, _pad2, _pad3
 };
 
 @group(0) @binding(0) var<uniform> camera : Camera;
@@ -56,7 +57,7 @@ fn clamp01(v: f32) -> f32 {
 }
 
 fn sampleDensity(pos: vec3f) -> f32 {
-  let uvw = (pos - BOX_MIN) / (BOX_MAX - BOX_MIN);
+  let uvw = (pos - BOX_MIN) / (getBoxMax() - BOX_MIN);
   if (any(uvw < vec3f(0.0)) || any(uvw > vec3f(1.0))) {
     return 0.0;
   }
@@ -92,7 +93,7 @@ fn cloudDensity(pos : vec3f) -> f32 {
   // Blender "Object" coordinates for a cloud layer (Z-up).
   // World Y is treated as Blender Z.
   let objPos = vec3f(pos.x, pos.z, pos.y);
-  let zNorm = (pos.y - BOX_MIN.y) / (BOX_MAX.y - BOX_MIN.y);
+  let zNorm = (pos.y - BOX_MIN.y) / (getBoxMax().y - BOX_MIN.y);
   let Z = 1.0 - clamp(zNorm, 0.0, 1.0);
 
   // --- STAGE 1: Altitude Mask ---
@@ -137,7 +138,11 @@ fn cloudDensity(pos : vec3f) -> f32 {
 // ============================================================
 
 const BOX_MIN = vec3f(-4.5, 0.0, -4.5); // Reduced bounds
-const BOX_MAX = vec3f( 4.5, 1.2,  4.5);
+const BOX_MAX_XZ = 4.5;
+
+fn getBoxMax() -> vec3f {
+  return vec3f(BOX_MAX_XZ, params.bounds_pack.x, BOX_MAX_XZ);
+}
 
 struct HitInfo {
   hit   : bool,
@@ -148,7 +153,7 @@ struct HitInfo {
 fn intersectBox(ro : vec3f, rd : vec3f) -> HitInfo {
   let invRd = 1.0 / rd;
   let t0 = (BOX_MIN - ro) * invRd;
-  let t1 = (BOX_MAX - ro) * invRd;
+  let t1 = (getBoxMax() - ro) * invRd;
   let tmin = min(t0, t1);
   let tmax = max(t0, t1);
   let tNear = max(tmin.x, max(tmin.y, tmin.z));
@@ -243,7 +248,7 @@ fn cs(@builtin(global_invocation_id) gid : vec3u) {
   if (gid.x >= dims.x || gid.y >= dims.y || gid.z >= dims.z) { return; }
 
   let uvw = (vec3f(gid) + 0.5) / vec3f(dims);
-  let pos = mix(BOX_MIN, BOX_MAX, uvw);
+  let pos = mix(BOX_MIN, getBoxMax(), uvw);
   let d = cloudDensity(pos);
   textureStore(densityStore, vec3i(gid), vec4f(d, 0.0, 0.0, 1.0));
 }

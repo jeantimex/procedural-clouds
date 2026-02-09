@@ -149,9 +149,9 @@ async function initWebGPU() {
   });
 
   // --- Params uniform buffer ---
-  // Layout: 5 x vec4f = 80 bytes
+  // Layout: 6 x vec4f = 96 bytes
   const paramsBuffer = device.createBuffer({
-    size: 80,
+    size: 96,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
 
@@ -271,6 +271,7 @@ async function initWebGPU() {
     lightMarchSteps: 4,
     shadowDarkness: 5,
     sunIntensity: 17,
+    cloudHeight: 1.5,
     cacheResolution: 96,
     cacheUpdateRate: 2,
     cacheSmooth: 0,
@@ -288,6 +289,7 @@ async function initWebGPU() {
   gui.add(params, 'lightMarchSteps', 1, 8, 1).name('Light Steps');
   gui.add(params, 'shadowDarkness', 0.5, 20.0, 0.1).name('Shadow Dark');
   gui.add(params, 'sunIntensity', 0.5, 20.0, 0.1).name('Sun Intensity');
+  gui.add(params, 'cloudHeight', 0.5, 5.0, 0.1).name('Cloud Height');
   gui.add(params, 'cacheResolution', 32, 128, 1).name('Cache Res').onFinishChange(v => {
     const next = Math.max(32, Math.min(128, Math.round(v)));
     params.cacheResolution = next;
@@ -306,7 +308,7 @@ async function initWebGPU() {
   let nextCacheTime = 0.0;
 
   // Pre-allocated buffers to avoid GC pressure
-  const paramsData = new Float32Array(20);
+  const paramsData = new Float32Array(24);
   const cameraData = new Float32Array(20);
 
   function buildParams(time, cacheBlend) {
@@ -336,6 +338,10 @@ async function initWebGPU() {
     paramsData[17] = params.lightMarchSteps;
     paramsData[18] = params.shadowDarkness;
     paramsData[19] = params.sunIntensity;
+    paramsData[20] = params.cloudHeight;
+    paramsData[21] = 0.0;
+    paramsData[22] = 0.0;
+    paramsData[23] = 0.0;
     return paramsData;
   }
   const stats = new Stats();
