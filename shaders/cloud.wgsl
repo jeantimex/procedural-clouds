@@ -14,7 +14,7 @@ struct Params {
   scale_pack  : vec4f, // factorShaper, scaleAlt, scaleNoise, scaleVoronoi1
   extra_pack  : vec4f, // scaleVoronoi2, detail, rayMarchSteps, skipLight
   cache_pack  : vec4f, // cacheBlend, lightMarchSteps, shadowDarkness, sunIntensity
-  bounds_pack : vec4f, // cloudHeight, sharpness, _pad2, _pad3
+  bounds_pack : vec4f, // cloudHeight, _pad1, _pad2, _pad3
 };
 
 @group(0) @binding(0) var<uniform> camera : Camera;
@@ -65,9 +65,7 @@ fn sampleDensity(pos: vec3f) -> f32 {
   let b = textureSampleLevel(densityTex1, densitySampler, uvw, 0.0).r;
   let blend = clamp(params.cache_pack.x, 0.0, 1.0);
   let density = mix(a, b, blend);
-  // Apply sharpness - higher values increase contrast for crisper edges
-  let sharpness = params.bounds_pack.y;
-  return pow(density, sharpness);
+  return density;
 }
 
 // ------------------------------------------------------------
