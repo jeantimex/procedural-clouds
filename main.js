@@ -131,6 +131,15 @@ async function initWebGPU() {
     },
   });
 
+  // --- Compute pipeline (density cache) ---
+  const computePipeline = device.createComputePipeline({
+    layout: 'auto',
+    compute: {
+      module: shaderModule,
+      entryPoint: 'cs',
+    },
+  });
+
   // --- Camera uniform buffer ---
   // Layout: mat4x4f (64 bytes) + vec3f (12 bytes) + f32 pad (4 bytes) = 80 bytes
   const cameraBuffer = device.createBuffer({
@@ -149,6 +158,45 @@ async function initWebGPU() {
     layout: pipeline.getBindGroupLayout(0),
     entries: [
       { binding: 0, resource: { buffer: cameraBuffer } },
+      { binding: 1, resource: { buffer: paramsBuffer } },
+    ],
+  });
+
+  // --- Density cache texture ---
+  const DENSITY_RES = 64;
+  const densityTexture = device.createTexture({
+    size: [DENSITY_RES, DENSITY_RES, DENSITY_RES],
+    dimension: '3d',
+    format: 'rgba16float',
+    usage: GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING,
+  });
+
+  const densitySampler = device.createSampler({
+    magFilter: 'linear',
+    minFilter: 'linear',
+    addressModeU: 'clamp-to-edge',
+    addressModeV: 'clamp-to-edge',
+    addressModeW: 'clamp-to-edge',
+  });
+
+  const densitySampleBindGroup = device.createBindGroup({
+    layout: pipeline.getBindGroupLayout(1),
+    entries: [
+      { binding: 0, resource: densitySampler },
+      { binding: 1, resource: densityTexture.createView({ dimension: '3d' }) },
+    ],
+  });
+
+  const densityStoreBindGroup = device.createBindGroup({
+    layout: computePipeline.getBindGroupLayout(2),
+    entries: [
+      { binding: 0, resource: densityTexture.createView({ dimension: '3d' }) },
+    ],
+  });
+
+  const computeBindGroup = device.createBindGroup({
+    layout: computePipeline.getBindGroupLayout(0),
+    entries: [
       { binding: 1, resource: { buffer: paramsBuffer } },
     ],
   });
@@ -265,6 +313,18 @@ async function initWebGPU() {
     device.queue.writeBuffer(paramsBuffer, 0, paramsData);
 
     const commandEncoder = device.createCommandEncoder();
+
+    // --- Compute density cache ---
+    {
+      const pass = commandEncoder.beginComputePass();
+      pass.setPipeline(computePipeline);
+      pass.setBindGroup(0, computeBindGroup);
+      pass.setBindGroup(2, densityStoreBindGroup);
+      const wg = 4;
+      const groups = Math.ceil(DENSITY_RES / wg);
+      pass.dispatchWorkgroups(groups, groups, groups);
+      pass.end();
+    }
     const textureView = context.getCurrentTexture().createView();
 
     const renderPass = commandEncoder.beginRenderPass({
@@ -280,6 +340,7 @@ async function initWebGPU() {
 
     renderPass.setPipeline(pipeline);
     renderPass.setBindGroup(0, bindGroup);
+    renderPass.setBindGroup(1, densitySampleBindGroup);
     renderPass.draw(3); // full-screen triangle
     renderPass.end();
 

@@ -17,6 +17,9 @@ struct Params {
 
 @group(0) @binding(0) var<uniform> camera : Camera;
 @group(0) @binding(1) var<uniform> params : Params;
+@group(1) @binding(0) var densitySampler : sampler;
+@group(1) @binding(1) var densityTex : texture_3d<f32>;
+@group(2) @binding(0) var densityStore : texture_storage_3d<rgba16float, write>;
 
 // ============================================================
 // Vertex
@@ -48,6 +51,14 @@ fn mapRange(value : f32, fromMin : f32, fromMax : f32, toMin : f32, toMax : f32)
 
 fn clamp01(v: f32) -> f32 {
   return clamp(v, 0.0, 1.0);
+}
+
+fn sampleDensity(pos: vec3f) -> f32 {
+  let uvw = (pos - BOX_MIN) / (BOX_MAX - BOX_MIN);
+  if (any(uvw < vec3f(0.0)) || any(uvw > vec3f(1.0))) {
+    return 0.0;
+  }
+  return textureSampleLevel(densityTex, densitySampler, uvw, 0.0).r;
 }
 
 // ------------------------------------------------------------
@@ -170,7 +181,7 @@ fn lightMarch(pos : vec3f) -> f32 {
   let stepSize = 0.15;
   for (var i = 1; i <= steps; i++) {
     let p = pos + SUN_DIR * (f32(i) * stepSize);
-    shadow += cloudDensity(p, true) * stepSize;
+    shadow += sampleDensity(p) * stepSize;
   }
   return exp(-shadow * 1.5); 
 }
@@ -210,7 +221,7 @@ fn fs(@builtin(position) fragCoord : vec4f, @location(0) uv : vec2f) -> @locatio
     let phase = mix(1.0, hgPhase(sunTheta, 0.45), 0.6);
 
     for (var i = 0; i < numSteps; i++) {
-      let d = cloudDensity(pos, false);
+      let d = sampleDensity(pos);
       if (d > 0.01) {
         let step_trans = exp(-d * stepSize);
         let shadow = select(lightMarch(pos), 1.0, skipLight);
@@ -230,4 +241,19 @@ fn fs(@builtin(position) fragCoord : vec4f, @location(0) uv : vec2f) -> @locatio
   outColor = outColor / (outColor + vec3f(1.0));
   outColor = pow(outColor, vec3f(1.0 / 2.2));
   return vec4f(outColor, 1.0);
+}
+
+// ============================================================
+// Density Cache Compute
+// ============================================================
+
+@compute @workgroup_size(4, 4, 4)
+fn cs(@builtin(global_invocation_id) gid : vec3u) {
+  let dims = textureDimensions(densityStore);
+  if (gid.x >= dims.x || gid.y >= dims.y || gid.z >= dims.z) { return; }
+
+  let uvw = (vec3f(gid) + 0.5) / vec3f(dims);
+  let pos = mix(BOX_MIN, BOX_MAX, uvw);
+  let d = cloudDensity(pos, false);
+  textureStore(densityStore, vec3i(gid), vec4f(d, 0.0, 0.0, 1.0));
 }
