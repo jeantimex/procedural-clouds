@@ -1,6 +1,7 @@
 import cloudSource from './shaders/cloud.wgsl?raw';
 import noiseSource from './shaders/noise.wgsl?raw';
 import GUI from 'lil-gui';
+import Stats from 'stats.js';
 
 const shaderSource = noiseSource + cloudSource;
 
@@ -264,8 +265,7 @@ async function initWebGPU() {
     scale: 3.75,
     altitude: 0.5,
     detail: 1.0,
-    windSpeed: 0.0,
-    performance: true,
+    windSpeed: 0.05,
     skipLight: true,
     cacheResolution: 96,
     cacheUpdateRate: 1,
@@ -281,7 +281,6 @@ async function initWebGPU() {
   gui.add(params, 'altitude', 0.1, 1.0, 0.01);
   gui.add(params, 'detail', 0.0, 15.0, 0.5);
   gui.add(params, 'windSpeed', 0.0, 2.0, 0.05);
-  gui.add(params, 'performance').name('Performance Mode');
   gui.add(params, 'skipLight').name('Skip Light March');
   gui.add(params, 'cacheResolution', 32, 128, 1).name('Cache Res').onFinishChange(v => {
     const next = Math.max(32, Math.min(128, Math.round(v)));
@@ -313,11 +312,16 @@ async function initWebGPU() {
       time, time, time, density,
       0.2, altitude, factorMacro, 1.0,
       1.0, scale, scale, scale,
-      scale, detail, params.performance ? 1.0 : 0.0, params.skipLight ? 1.0 : 0.0,
+      scale, detail, 0.0, params.skipLight ? 1.0 : 0.0,
       cacheBlend, 0.0, 0.0, 0.0
     ]);
   }
+  const stats = new Stats();
+  stats.showPanel(0);
+  document.body.appendChild(stats.dom);
+
   function frame() {
+    stats.begin();
     resize();
     frameIndex++;
 
@@ -439,6 +443,7 @@ async function initWebGPU() {
     renderPass.end();
 
     device.queue.submit([commandEncoder.finish()]);
+    stats.end();
     requestAnimationFrame(frame);
   }
 

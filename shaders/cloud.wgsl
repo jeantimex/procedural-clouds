@@ -12,7 +12,7 @@ struct Params {
   time_pack   : vec4f, // timeNoise, timeVoronoi1, timeVoronoi2, density
   alt_pack    : vec4f, // lowAltDensity, altitude, factorMacro, factorDetail
   scale_pack  : vec4f, // factorShaper, scaleAlt, scaleNoise, scaleVoronoi1
-  extra_pack  : vec4f, // scaleVoronoi2, detail, fastMode, skipLight
+  extra_pack  : vec4f, // scaleVoronoi2, detail, unused, skipLight
   cache_pack  : vec4f, // cacheBlend, _pad0, _pad1, _pad2
 };
 
@@ -70,8 +70,7 @@ fn sampleDensity(pos: vec3f) -> f32 {
 // Cloud Density (100% Blender Node Graph Match)
 // ------------------------------------------------------------
 
-fn cloudDensity(pos : vec3f, is_cheap : bool) -> f32 {
-  let _unused = is_cheap;
+fn cloudDensity(pos : vec3f) -> f32 {
   let timeNoise     = params.time_pack.x;
   let timeVoronoi1  = params.time_pack.y;
   let timeVoronoi2  = params.time_pack.z;
@@ -89,7 +88,6 @@ fn cloudDensity(pos : vec3f, is_cheap : bool) -> f32 {
 
   let scaleVoronoi2 = params.extra_pack.x;
   let detail        = params.extra_pack.y;
-  let fastMode      = params.extra_pack.z > 0.5;
 
   // Blender "Object" coordinates for a cloud layer (Z-up).
   // World Y is treated as Blender Z.
@@ -111,24 +109,14 @@ fn cloudDensity(pos : vec3f, is_cheap : bool) -> f32 {
 
   // --- STAGE 2: Macro Voronoi ---
   let v1Coord = objPos / scaleVoronoi1;
-  let v1Detail = select(detail, min(detail, 2.0), fastMode);
-  let v1dist = select(
-    node_tex_voronoi_f1_4d_distance(v1Coord, timeVoronoi1, 5.0, v1Detail, 0.5, 3.0, 1.0, 0.5, 1.0, 0.0, 1.0),
-    node_tex_voronoi_f1_4d_distance_fast(v1Coord, timeVoronoi1, 5.0, v1Detail, 0.5, 3.0, 1.0, 0.5, 1.0, 0.0, 1.0),
-    fastMode
-  );
+  let v1dist = node_tex_voronoi_f1_4d_distance(v1Coord, timeVoronoi1, 5.0, detail, 0.5, 3.0, 1.0, 0.5, 1.0, 0.0, 1.0);
   let v1mapped = mapRange(v1dist, 0.0, 0.75, factorMacro * -0.4, factorMacro);
   let v1scaled = clamp01(v1mapped * 0.5); // Math.012
   let stage2 = clamp01(altitudeMask + v1scaled); // Math.003
 
   // --- STAGE 3: Medium Voronoi Detail ---
   let v2Coord = objPos / scaleVoronoi2;
-  let v2Detail = select(detail * 5.0, min(detail * 5.0, 3.0), fastMode);
-  let v2dist = select(
-    node_tex_voronoi_f1_4d_distance(v2Coord, timeVoronoi2, 2.0, v2Detail, 0.75, 2.5, 1.0, 0.5, 1.0, 0.0, 1.0),
-    node_tex_voronoi_f1_4d_distance_fast(v2Coord, timeVoronoi2, 2.0, v2Detail, 0.75, 2.5, 1.0, 0.5, 1.0, 0.0, 1.0),
-    fastMode
-  );
+  let v2dist = node_tex_voronoi_f1_4d_distance(v2Coord, timeVoronoi2, 2.0, detail * 5.0, 0.75, 2.5, 1.0, 0.5, 1.0, 0.0, 1.0);
   let v2mapped = mapRange(v2dist, 0.0, 1.0, factorDetail * -0.25, factorDetail);
   let stage3 = clamp01(stage2 + v2mapped); // Math.004
 
@@ -172,8 +160,7 @@ const SUN_DIR   = vec3f(0.189, 0.943, 0.283);
 const SUN_COLOR = vec3f(1.0, 1.0, 1.0);
 const AMBIENT   = vec3f(0.26, 0.30, 0.42);
 const BG_COLOR  = vec3f(0.045, 0.10, 0.18);
-const NUM_STEPS_ACCURATE = 48;
-const NUM_STEPS_FAST = 16;
+const NUM_STEPS = 48;
 
 fn hgPhase(cosTheta: f32, g: f32) -> f32 {
     let g2 = g * g;
@@ -198,9 +185,7 @@ fn interleavedGradientNoise(uv: vec2f) -> f32 {
 
 @fragment
 fn fs(@builtin(position) fragCoord : vec4f, @location(0) uv : vec2f) -> @location(0) vec4f {
-  let fastMode = params.extra_pack.z > 0.5;
   let skipLight = params.extra_pack.w > 0.5;
-  let numSteps = select(NUM_STEPS_ACCURATE, NUM_STEPS_FAST, fastMode);
   let world_near = camera.invViewProj * vec4f(uv, 0.0, 1.0);
   let world_far  = camera.invViewProj * vec4f(uv, 1.0, 1.0);
   let ro = camera.position;
@@ -217,7 +202,7 @@ fn fs(@builtin(position) fragCoord : vec4f, @location(0) uv : vec2f) -> @locatio
   if (hit.hit) {
     let tEntry = max(hit.tNear, 0.0);
     let tExit  = hit.tFar;
-    let stepSize = (tExit - tEntry) / f32(numSteps);
+    let stepSize = (tExit - tEntry) / f32(NUM_STEPS);
     let dither = interleavedGradientNoise(fragCoord.xy);
     
     var pos = ro + rd * (tEntry + stepSize * dither);
@@ -225,7 +210,7 @@ fn fs(@builtin(position) fragCoord : vec4f, @location(0) uv : vec2f) -> @locatio
     var color = vec3f(0.0);
     let phase = mix(1.0, hgPhase(sunTheta, 0.45), 0.6);
 
-    for (var i = 0; i < numSteps; i++) {
+    for (var i = 0; i < NUM_STEPS; i++) {
       let d = sampleDensity(pos);
       if (d > 0.01) {
         let step_trans = exp(-d * stepSize);
@@ -235,7 +220,7 @@ fn fs(@builtin(position) fragCoord : vec4f, @location(0) uv : vec2f) -> @locatio
 
         color += transmittance * (1.0 - step_trans) * litColor;
         transmittance *= step_trans;
-        let cutoff = select(0.01, 0.05, fastMode);
+        let cutoff = 0.01;
         if (transmittance < cutoff) { break; }
       }
       pos += rd * stepSize;
@@ -259,6 +244,6 @@ fn cs(@builtin(global_invocation_id) gid : vec3u) {
 
   let uvw = (vec3f(gid) + 0.5) / vec3f(dims);
   let pos = mix(BOX_MIN, BOX_MAX, uvw);
-  let d = cloudDensity(pos, false);
+  let d = cloudDensity(pos);
   textureStore(densityStore, vec3i(gid), vec4f(d, 0.0, 0.0, 1.0));
 }
