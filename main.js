@@ -219,7 +219,7 @@ async function initWebGPU() {
   // Set better defaults on sliders
   controls.density.value = 1.0;
   controls.coverage.value = 0.8;
-  controls.scale.value = 3.0;
+  controls.scale.value = 3.75;
   controls.altitude.value = 0.5;
   controls.detail.value = 1.0;
   controls.windSpeed.value = 0.0;
