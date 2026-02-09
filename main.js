@@ -138,9 +138,9 @@ async function initWebGPU() {
   });
 
   // --- Params uniform buffer ---
-  // Layout: time, density, lowAltDensity, altitude, factor, scale, detail, _pad = 8 x f32 = 32 bytes
+  // Layout: 4 x vec4f = 64 bytes
   const paramsBuffer = device.createBuffer({
-    size: 32,
+    size: 64,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
 
@@ -218,11 +218,11 @@ async function initWebGPU() {
 
   // Set better defaults on sliders
   controls.density.value = 1.0;
-  controls.coverage.value = 0.65;
-  controls.scale.value = 1.5;
+  controls.coverage.value = 0.8;
+  controls.scale.value = 3.0;
   controls.altitude.value = 0.5;
-  controls.detail.value = 5.0;
-  controls.windSpeed.value = 0.5;
+  controls.detail.value = 1.0;
+  controls.windSpeed.value = 0.0;
 
   Object.keys(controls).forEach(key => {
     controls[key].addEventListener('input', () => {
@@ -260,15 +260,18 @@ async function initWebGPU() {
     device.queue.writeBuffer(cameraBuffer, 0, cameraData);
 
     // Sync params with UI
+    const time = elapsed * windSpeed;
+    const density = parseFloat(controls.density.value);
+    const altitude = parseFloat(controls.altitude.value);
+    const factorMacro = parseFloat(controls.coverage.value);
+    const scale = parseFloat(controls.scale.value);
+    const detail = parseFloat(controls.detail.value);
+
     const paramsData = new Float32Array([
-      elapsed * windSpeed,
-      parseFloat(controls.density.value) * 0.01,
-      0.05, 
-      parseFloat(controls.altitude.value),
-      parseFloat(controls.coverage.value),
-      parseFloat(controls.scale.value),
-      parseFloat(controls.detail.value),
-      0.0  
+      time, time, time, density,
+      0.2, altitude, factorMacro, 1.0,
+      1.0, scale, scale, scale,
+      scale, detail, 0.0, 0.0
     ]);
     device.queue.writeBuffer(paramsBuffer, 0, paramsData);
 

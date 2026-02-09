@@ -1,11 +1,63 @@
 // ============================================================
 // Blender-Compatible 4D Noise & Voronoi (WGSL Port)
-// Optimized for Performance
+// Based on Blender GPU shader sources in ref/
 // ============================================================
 
 // ------------------------------------------------------------
 // HASH FUNCTIONS (Jenkins Lookup3 - for Noise Texture)
 // ------------------------------------------------------------
+
+fn rot_u32(x: u32, k: u32) -> u32 {
+    return (x << k) | (x >> (32u - k));
+}
+
+fn hash_uint(kx: u32) -> u32 {
+    var a = 0xdeadbeefu + (1u << 2u) + 13u;
+    var b = a;
+    var c = a;
+    a += kx;
+    c ^= b; c -= rot_u32(b, 14u);
+    a ^= c; a -= rot_u32(c, 11u);
+    b ^= a; b -= rot_u32(a, 25u);
+    c ^= b; c -= rot_u32(b, 16u);
+    a ^= c; a -= rot_u32(c, 4u);
+    b ^= a; b -= rot_u32(a, 14u);
+    c ^= b; c -= rot_u32(b, 24u);
+    return c;
+}
+
+fn hash_uint2(kx: u32, ky: u32) -> u32 {
+    var a = 0xdeadbeefu + (2u << 2u) + 13u;
+    var b = a;
+    var c = a;
+    a += kx;
+    b += ky;
+    c ^= b; c -= rot_u32(b, 14u);
+    a ^= c; a -= rot_u32(c, 11u);
+    b ^= a; b -= rot_u32(a, 25u);
+    c ^= b; c -= rot_u32(b, 16u);
+    a ^= c; a -= rot_u32(c, 4u);
+    b ^= a; b -= rot_u32(a, 14u);
+    c ^= b; c -= rot_u32(b, 24u);
+    return c;
+}
+
+fn hash_uint3(kx: u32, ky: u32, kz: u32) -> u32 {
+    var a = 0xdeadbeefu + (3u << 2u) + 13u;
+    var b = a;
+    var c = a;
+    a += kx;
+    b += ky;
+    c += kz;
+    c ^= b; c -= rot_u32(b, 14u);
+    a ^= c; a -= rot_u32(c, 11u);
+    b ^= a; b -= rot_u32(a, 25u);
+    c ^= b; c -= rot_u32(b, 16u);
+    a ^= c; a -= rot_u32(c, 4u);
+    b ^= a; b -= rot_u32(a, 14u);
+    c ^= b; c -= rot_u32(b, 24u);
+    return c;
+}
 
 fn hash_uint4(kx: u32, ky: u32, kz: u32, kw: u32) -> u32 {
     var a = 0xdeadbeefu + (4u << 2u) + 13u;
@@ -13,51 +65,35 @@ fn hash_uint4(kx: u32, ky: u32, kz: u32, kw: u32) -> u32 {
     var c = a;
     a += kx;
     b += ky;
-    
-    // mix_hash
-    a -= c; a ^= ((c << 4u) | (c >> 28u)); c += b;
-    b -= a; b ^= ((a << 6u) | (a >> 26u)); a += c;
-    c -= b; c ^= ((b << 8u) | (b >> 24u)); b += a;
-    a -= c; a ^= ((c << 16u) | (c >> 16u)); c += b;
-    b -= a; b ^= ((a << 19u) | (a >> 13u)); a += c;
-    c -= b; c ^= ((b << 4u) | (b >> 28u)); b += a;
-
+    a -= c; a ^= rot_u32(c, 4u);  c += b;
+    b -= a; b ^= rot_u32(a, 6u);  a += c;
+    c -= b; c ^= rot_u32(b, 8u);  b += a;
+    a -= c; a ^= rot_u32(c, 16u); c += b;
+    b -= a; b ^= rot_u32(a, 19u); a += c;
+    c -= b; c ^= rot_u32(b, 4u);  b += a;
     a += kz;
     b += kw;
-
-    // final_hash
-    c ^= b; c -= ((b << 14u) | (b >> 18u));
-    a ^= c; a -= ((c << 11u) | (c >> 21u));
-    b ^= a; b -= ((a << 25u) | (a >> 7u));
-    c ^= b; c -= ((b << 16u) | (b >> 16u));
-    a ^= c; a -= ((c << 4u) | (c >> 28u));
-    b ^= a; b -= ((a << 14u) | (a >> 18u));
-    c ^= b; c -= ((b << 24u) | (b >> 8u));
-
+    c ^= b; c -= rot_u32(b, 14u);
+    a ^= c; a -= rot_u32(c, 11u);
+    b ^= a; b -= rot_u32(a, 25u);
+    c ^= b; c -= rot_u32(b, 16u);
+    a ^= c; a -= rot_u32(c, 4u);
+    b ^= a; b -= rot_u32(a, 14u);
+    c ^= b; c -= rot_u32(b, 24u);
     return c;
 }
 
-// ------------------------------------------------------------
-// HASH FUNCTIONS (PCG4D - for Voronoi)
-// ------------------------------------------------------------
-
-fn hash_pcg4d(v_in: vec4i) -> vec4i {
-    var v = v_in * 1664525 + 1013904223;
-    v.x += v.y * v.w;
-    v.y += v.z * v.x;
-    v.z += v.x * v.y;
-    v.w += v.y * v.z;
-    v = v ^ (v >> vec4u(16u));
-    v.x += v.y * v.w;
-    v.y += v.z * v.x;
-    v.z += v.x * v.y;
-    v.w += v.y * v.z;
-    return v;
+fn hash_uint4_to_float(kx: u32, ky: u32, kz: u32, kw: u32) -> f32 {
+    return f32(hash_uint4(kx, ky, kz, kw)) / f32(0xFFFFFFFFu);
 }
 
-fn hash_vec4_to_vec4_voronoi(k: vec4i) -> vec4f {
-    let h = hash_pcg4d(k);
-    return vec4f(h & vec4i(0x7fffffff)) * (1.0 / f32(0x7fffffff));
+fn hash_vec4_to_vec4(k: vec4f) -> vec4f {
+    return vec4f(
+        hash_uint4_to_float(bitcast<u32>(k.x), bitcast<u32>(k.y), bitcast<u32>(k.z), bitcast<u32>(k.w)),
+        hash_uint4_to_float(bitcast<u32>(k.w), bitcast<u32>(k.x), bitcast<u32>(k.y), bitcast<u32>(k.z)),
+        hash_uint4_to_float(bitcast<u32>(k.z), bitcast<u32>(k.w), bitcast<u32>(k.x), bitcast<u32>(k.y)),
+        hash_uint4_to_float(bitcast<u32>(k.y), bitcast<u32>(k.z), bitcast<u32>(k.w), bitcast<u32>(k.x))
+    );
 }
 
 // ------------------------------------------------------------
@@ -90,20 +126,14 @@ fn quad_mix(v0: f32, v1: f32, v2: f32, v3: f32,
 
 fn noiseg_4d(hash: u32, x: f32, y: f32, z: f32, w: f32) -> f32 {
     let h = hash & 31u;
-    var u = x; if (h >= 24u) { u = y; }
-    var v = y; if (h >= 16u) { v = z; }
-    var s = z; if (h >= 8u) { s = w; }
-    
-    var res = u; if ((h & 1u) != 0u) { res = -u; }
-    var res_v = v; if ((h & 2u) != 0u) { res_v = -v; }
-    var res_s = s; if ((h & 4u) != 0u) { res_s = -s; }
-    
+    let u = select(x, y, h >= 24u);
+    let v = select(y, z, h >= 16u);
+    let s = select(z, w, h >= 8u);
+    let res = select(u, -u, (h & 1u) != 0u);
+    let res_v = select(v, -v, (h & 2u) != 0u);
+    let res_s = select(s, -s, (h & 4u) != 0u);
     return res + res_v + res_s;
 }
-
-// ------------------------------------------------------------
-// 4D PERLIN NOISE
-// ------------------------------------------------------------
 
 fn perlin_noise_4d(position: vec4f) -> f32 {
     let pf = floor(position);
@@ -111,7 +141,7 @@ fn perlin_noise_4d(position: vec4f) -> f32 {
     let Y = i32(pf.y);
     let Z = i32(pf.z);
     let W = i32(pf.w);
-    
+
     let fx = position.x - pf.x;
     let fy = position.y - pf.y;
     let fz = position.z - pf.z;
@@ -122,108 +152,262 @@ fn perlin_noise_4d(position: vec4f) -> f32 {
     let t = noise_fade(fz);
     let s = noise_fade(fw);
 
-    let v0 = noiseg_4d(hash_uint4(u32(X),   u32(Y),   u32(Z),   u32(W)),   fx,       fy,       fz,       fw);
-    let v1 = noiseg_4d(hash_uint4(u32(X+1), u32(Y),   u32(Z),   u32(W)),   fx-1.0,   fy,       fz,       fw);
-    let v2 = noiseg_4d(hash_uint4(u32(X),   u32(Y+1), u32(Z),   u32(W)),   fx,       fy-1.0,   fz,       fw);
-    let v3 = noiseg_4d(hash_uint4(u32(X+1), u32(Y+1), u32(Z),   u32(W)),   fx-1.0,   fy-1.0,   fz,       fw);
-    let v4 = noiseg_4d(hash_uint4(u32(X),   u32(Y),   u32(Z+1), u32(W)),   fx,       fy,       fz-1.0,   fw);
-    let v5 = noiseg_4d(hash_uint4(u32(X+1), u32(Y),   u32(Z+1), u32(W)),   fx-1.0,   fy,       fz-1.0,   fw);
-    let v6 = noiseg_4d(hash_uint4(u32(X),   u32(Y+1), u32(Z+1), u32(W)),   fx,       fy-1.0,   fz-1.0,   fw);
-    let v7 = noiseg_4d(hash_uint4(u32(X+1), u32(Y+1), u32(Z+1), u32(W)),   fx-1.0,   fy-1.0,   fz-1.0,   fw);
-    let v8 = noiseg_4d(hash_uint4(u32(X),   u32(Y),   u32(Z),   u32(W+1)), fx,       fy,       fz,       fw-1.0);
-    let v9 = noiseg_4d(hash_uint4(u32(X+1), u32(Y),   u32(Z),   u32(W+1)), fx-1.0,   fy,       fz,       fw-1.0);
-    let v10 = noiseg_4d(hash_uint4(u32(X),   u32(Y+1), u32(Z),   u32(W+1)), fx,       fy-1.0,   fz,       fw-1.0);
-    let v11 = noiseg_4d(hash_uint4(u32(X+1), u32(Y+1), u32(Z),   u32(W+1)), fx-1.0,   fy-1.0,   fz,       fw-1.0);
-    let v12 = noiseg_4d(hash_uint4(u32(X),   u32(Y),   u32(Z+1), u32(W+1)), fx,       fy,       fz-1.0,   fw-1.0);
-    let v13 = noiseg_4d(hash_uint4(u32(X+1), u32(Y),   u32(Z+1), u32(W+1)), fx-1.0,   fy,       fz-1.0,   fw-1.0);
-    let v14 = noiseg_4d(hash_uint4(u32(X),   u32(Y+1), u32(Z+1), u32(W+1)), fx,       fy-1.0,   fz-1.0,   fw-1.0);
-    let v15 = noiseg_4d(hash_uint4(u32(X+1), u32(Y+1), u32(Z+1), u32(W+1)), fx-1.0,   fy-1.0,   fz-1.0,   fw-1.0);
+    return quad_mix(
+        noiseg_4d(hash_uint4(u32(X),   u32(Y),   u32(Z),   u32(W)),   fx,       fy,       fz,       fw),
+        noiseg_4d(hash_uint4(u32(X+1), u32(Y),   u32(Z),   u32(W)),   fx-1.0,   fy,       fz,       fw),
+        noiseg_4d(hash_uint4(u32(X),   u32(Y+1), u32(Z),   u32(W)),   fx,       fy-1.0,   fz,       fw),
+        noiseg_4d(hash_uint4(u32(X+1), u32(Y+1), u32(Z),   u32(W)),   fx-1.0,   fy-1.0,   fz,       fw),
+        noiseg_4d(hash_uint4(u32(X),   u32(Y),   u32(Z+1), u32(W)),   fx,       fy,       fz-1.0,   fw),
+        noiseg_4d(hash_uint4(u32(X+1), u32(Y),   u32(Z+1), u32(W)),   fx-1.0,   fy,       fz-1.0,   fw),
+        noiseg_4d(hash_uint4(u32(X),   u32(Y+1), u32(Z+1), u32(W)),   fx,       fy-1.0,   fz-1.0,   fw),
+        noiseg_4d(hash_uint4(u32(X+1), u32(Y+1), u32(Z+1), u32(W)),   fx-1.0,   fy-1.0,   fz-1.0,   fw),
+        noiseg_4d(hash_uint4(u32(X),   u32(Y),   u32(Z),   u32(W+1)), fx,       fy,       fz,       fw-1.0),
+        noiseg_4d(hash_uint4(u32(X+1), u32(Y),   u32(Z),   u32(W+1)), fx-1.0,   fy,       fz,       fw-1.0),
+        noiseg_4d(hash_uint4(u32(X),   u32(Y+1), u32(Z),   u32(W+1)), fx,       fy-1.0,   fz,       fw-1.0),
+        noiseg_4d(hash_uint4(u32(X+1), u32(Y+1), u32(Z),   u32(W+1)), fx-1.0,   fy-1.0,   fz,       fw-1.0),
+        noiseg_4d(hash_uint4(u32(X),   u32(Y),   u32(Z+1), u32(W+1)), fx,       fy,       fz-1.0,   fw-1.0),
+        noiseg_4d(hash_uint4(u32(X+1), u32(Y),   u32(Z+1), u32(W+1)), fx-1.0,   fy,       fz-1.0,   fw-1.0),
+        noiseg_4d(hash_uint4(u32(X),   u32(Y+1), u32(Z+1), u32(W+1)), fx,       fy-1.0,   fz-1.0,   fw-1.0),
+        noiseg_4d(hash_uint4(u32(X+1), u32(Y+1), u32(Z+1), u32(W+1)), fx-1.0,   fy-1.0,   fz-1.0,   fw-1.0),
+        u, v, t, s);
+}
 
-    return quad_mix(v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15, u, v, t, s);
+fn noise_fbm(p: vec4f, detail: f32, roughness: f32, lacunarity: f32, normalize: bool) -> f32 {
+    var fscale = 1.0;
+    var amp = 1.0;
+    var maxamp = 0.0;
+    var sum = 0.0;
+
+    let d_int = i32(detail);
+    for (var i = 0; i <= d_int; i++) {
+        let t = perlin_noise_4d(fscale * p);
+        sum += t * amp;
+        maxamp += amp;
+        amp *= roughness;
+        fscale *= lacunarity;
+    }
+
+    let rmd = detail - floor(detail);
+    if (rmd != 0.0) {
+        let t = perlin_noise_4d(fscale * p);
+        let sum2 = sum + t * amp;
+        return select(
+            mix(sum, sum2, rmd),
+            mix(0.5 + 0.5 * (sum / maxamp), 0.5 + 0.5 * (sum2 / (maxamp + amp)), rmd),
+            normalize
+        );
+    }
+
+    return select(sum, 0.5 + 0.5 * (sum / maxamp), normalize);
+}
+
+fn random_vec4_offset(seed: f32) -> vec4f {
+    return hash_vec4_to_vec4(vec4f(seed, seed * 1.37, seed * 2.23, seed * 3.11));
+}
+
+fn node_noise_texture_4d_value(
+    co: vec3f,
+    w: f32,
+    scale: f32,
+    detail: f32,
+    roughness: f32,
+    lacunarity: f32,
+    distortion: f32,
+    normalize: f32
+) -> f32 {
+    var p = vec4f(co, w) * scale;
+    if (distortion != 0.0) {
+        p += vec4f(
+            perlin_noise_4d(p + random_vec4_offset(0.0)) * distortion,
+            perlin_noise_4d(p + random_vec4_offset(1.0)) * distortion,
+            perlin_noise_4d(p + random_vec4_offset(2.0)) * distortion,
+            perlin_noise_4d(p + random_vec4_offset(3.0)) * distortion
+        );
+    }
+    return noise_fbm(p, detail, roughness, lacunarity, normalize != 0.0);
 }
 
 // ------------------------------------------------------------
-// 4D VORONOI F1 (Standard 3x3x3x3 = 81 neighbors)
+// VORONOI (Blender exact path for F1)
 // ------------------------------------------------------------
 
-fn voronoi_f1_4d(coord: vec4f, randomness: f32) -> f32 {
+fn hash_pcg4d_i(v_in: vec4i) -> vec4i {
+    var v = v_in * 1664525 + 1013904223;
+    v.x += v.y * v.w;
+    v.y += v.z * v.x;
+    v.z += v.x * v.y;
+    v.w += v.y * v.z;
+    v = v ^ (v >> vec4u(16u));
+    v.x += v.y * v.w;
+    v.y += v.z * v.x;
+    v.z += v.x * v.y;
+    v.w += v.y * v.z;
+    return v;
+}
+
+fn hash_int4_to_vec4(k: vec4i) -> vec4f {
+    let h = hash_pcg4d_i(k);
+    return vec4f(h & vec4i(0x7fffffff)) * (1.0 / f32(0x7fffffff));
+}
+
+fn hash_int4_to_vec3(k: vec4i) -> vec3f {
+    return hash_int4_to_vec4(k).xyz;
+}
+
+const SHD_VORONOI_EUCLIDEAN = 0;
+const SHD_VORONOI_MANHATTAN = 1;
+const SHD_VORONOI_CHEBYCHEV = 2;
+const SHD_VORONOI_MINKOWSKI = 3;
+
+const SHD_VORONOI_F1 = 0;
+
+struct VoronoiParams {
+    scale: f32,
+    detail: f32,
+    roughness: f32,
+    lacunarity: f32,
+    smoothness: f32,
+    exponent: f32,
+    randomness: f32,
+    max_distance: f32,
+    normalize: bool,
+    feature: i32,
+    metric: i32,
+};
+
+struct VoronoiOutput {
+    Distance: f32,
+    Color: vec3f,
+    Position: vec4f,
+};
+
+fn voronoi_distance(a: vec4f, b: vec4f, params: VoronoiParams) -> f32 {
+    if (params.metric == SHD_VORONOI_EUCLIDEAN) {
+        return distance(a, b);
+    } else if (params.metric == SHD_VORONOI_MANHATTAN) {
+        return abs(a.x - b.x) + abs(a.y - b.y) + abs(a.z - b.z) + abs(a.w - b.w);
+    } else if (params.metric == SHD_VORONOI_CHEBYCHEV) {
+        return max(abs(a.x - b.x), max(abs(a.y - b.y), max(abs(a.z - b.z), abs(a.w - b.w))));
+    } else if (params.metric == SHD_VORONOI_MINKOWSKI) {
+        return pow(
+            pow(abs(a.x - b.x), params.exponent) +
+            pow(abs(a.y - b.y), params.exponent) +
+            pow(abs(a.z - b.z), params.exponent) +
+            pow(abs(a.w - b.w), params.exponent),
+            1.0 / params.exponent
+        );
+    }
+    return 0.0;
+}
+
+fn voronoi_f1(params: VoronoiParams, coord: vec4f) -> VoronoiOutput {
     let cellPosition_f = floor(coord);
     let localPosition = coord - cellPosition_f;
     let cellPosition = vec4i(cellPosition_f);
 
-    var minDistanceSq = 1e10;
+    var minDistance = 3.402823466e+38;
+    var targetOffset = vec4i(0);
+    var targetPosition = vec4f(0.0);
 
     for (var u = -1; u <= 1; u++) {
         for (var k = -1; k <= 1; k++) {
             for (var j = -1; j <= 1; j++) {
                 for (var i = -1; i <= 1; i++) {
                     let cellOffset = vec4i(i, j, k, u);
-                    let p = vec4f(cellOffset) + hash_vec4_to_vec4_voronoi(cellPosition + cellOffset) * randomness;
-                    let diff = p - localPosition;
-                    let d2 = dot(diff, diff);
-                    if (d2 < minDistanceSq) {
-                        minDistanceSq = d2;
+                    let pointPosition = vec4f(cellOffset) + hash_int4_to_vec4(cellPosition + cellOffset) * params.randomness;
+                    let distanceToPoint = voronoi_distance(pointPosition, localPosition, params);
+                    if (distanceToPoint < minDistance) {
+                        targetOffset = cellOffset;
+                        minDistance = distanceToPoint;
+                        targetPosition = pointPosition;
                     }
                 }
             }
         }
     }
-    return sqrt(minDistanceSq);
+
+    var octave: VoronoiOutput;
+    octave.Distance = minDistance;
+    octave.Color = hash_int4_to_vec3(cellPosition + targetOffset);
+    octave.Position = targetPosition + cellPosition_f;
+    return octave;
 }
 
-// ------------------------------------------------------------
-// 4D VORONOI F1 FAST (2x2x2x2 = 16 neighbors)
-// ------------------------------------------------------------
-
-fn voronoi_f1_4d_fast(coord: vec4f, randomness: f32) -> f32 {
-    let cellPosition_f = floor(coord);
-    let localPosition = coord - cellPosition_f;
-    let cellPosition = vec4i(cellPosition_f);
-    
-    // Determine which 16 cells to check based on local position
-    let offset = vec4i(step(vec4f(0.5), localPosition));
-    let base = cellPosition + offset - vec4i(1);
-
-    var minDistanceSq = 1e10;
-
-    for (var u = 0; u <= 1; u++) {
-        for (var k = 0; k <= 1; k++) {
-            for (var j = 0; j <= 1; j++) {
-                for (var i = 0; i <= 1; i++) {
-                    let cellOffset = vec4i(i, j, k, u);
-                    let cell = base + cellOffset;
-                    let p = vec4f(cell - cellPosition) + hash_vec4_to_vec4_voronoi(cell) * randomness;
-                    let diff = p - localPosition;
-                    let d2 = dot(diff, diff);
-                    if (d2 < minDistanceSq) {
-                        minDistanceSq = d2;
-                    }
-                }
-            }
-        }
-    }
-    return sqrt(minDistanceSq);
-}
-
-fn fractal_voronoi_4d_fast(coord: vec4f, detail: f32, roughness: f32, lacunarity: f32) -> f32 {
+fn fractal_voronoi_x_fx(params: VoronoiParams, coord: vec4f) -> VoronoiOutput {
     var amplitude = 1.0;
     var max_amplitude = 0.0;
     var scale = 1.0;
-    var total_distance = 0.0;
 
-    let d = clamp(detail, 0.0, 5.0); // Limit octaves for performance
+    var Output: VoronoiOutput;
+    Output.Distance = 0.0;
+    Output.Color = vec3f(0.0);
+    Output.Position = vec4f(0.0);
 
-    for (var i = 0; i < 5; i++) {
-        if (f32(i) > d) { break; }
-        
-        // Use fast version for detail octaves
-        let dist = voronoi_f1_4d_fast(coord * scale, 1.0);
-        
-        total_distance += dist * amplitude;
-        max_amplitude += amplitude;
-        scale *= lacunarity;
-        amplitude *= roughness;
+    let zero_input = params.detail == 0.0 || params.roughness == 0.0;
+    let max_i = i32(ceil(params.detail));
+
+    for (var i = 0; i <= max_i; i++) {
+        let octave = voronoi_f1(params, coord * scale);
+        if (zero_input) {
+            max_amplitude = 1.0;
+            Output = octave;
+            break;
+        } else if (f32(i) <= params.detail) {
+            max_amplitude += amplitude;
+            Output.Distance += octave.Distance * amplitude;
+            Output.Color += octave.Color * amplitude;
+            Output.Position = mix(Output.Position, octave.Position / scale, amplitude);
+            scale *= params.lacunarity;
+            amplitude *= params.roughness;
+        } else {
+            let remainder = params.detail - floor(params.detail);
+            if (remainder != 0.0) {
+                max_amplitude = mix(max_amplitude, max_amplitude + amplitude, remainder);
+                Output.Distance = mix(Output.Distance, Output.Distance + octave.Distance * amplitude, remainder);
+                Output.Color = mix(Output.Color, Output.Color + octave.Color * amplitude, remainder);
+                Output.Position = mix(Output.Position, mix(Output.Position, octave.Position / scale, amplitude), remainder);
+            }
+        }
     }
 
-    return total_distance / max_amplitude;
+    if (params.normalize) {
+        Output.Distance /= max_amplitude * params.max_distance;
+        Output.Color /= max_amplitude;
+    }
+
+    Output.Position = Output.Position / params.scale;
+    return Output;
+}
+
+fn node_tex_voronoi_f1_4d_distance(
+    coord: vec3f,
+    w: f32,
+    scale: f32,
+    detail: f32,
+    roughness: f32,
+    lacunarity: f32,
+    smoothness: f32,
+    exponent: f32,
+    randomness: f32,
+    metric: f32,
+    normalize: f32
+) -> f32 {
+    var params: VoronoiParams;
+    params.feature = SHD_VORONOI_F1;
+    params.metric = i32(metric);
+    params.scale = scale;
+    params.detail = clamp(detail, 0.0, 15.0);
+    params.roughness = clamp(roughness, 0.0, 1.0);
+    params.lacunarity = lacunarity;
+    params.smoothness = clamp(smoothness / 2.0, 0.0, 0.5);
+    params.exponent = exponent;
+    params.randomness = clamp(randomness, 0.0, 1.0);
+    params.max_distance = 0.0;
+    params.normalize = normalize != 0.0;
+
+    let w_scaled = w * scale;
+    let coord_scaled = coord * scale;
+    params.max_distance = voronoi_distance(vec4f(0.0), vec4f(0.5 + 0.5 * params.randomness), params);
+    let Output = fractal_voronoi_x_fx(params, vec4f(coord_scaled, w_scaled));
+    return Output.Distance;
 }

@@ -9,14 +9,10 @@ struct Camera {
 };
 
 struct Params {
-  time            : f32,
-  density         : f32,
-  lowAltDensity   : f32,
-  altitude        : f32,
-  factor          : f32,
-  scale           : f32,
-  detail          : f32,
-  _pad            : f32,
+  time_pack   : vec4f, // timeNoise, timeVoronoi1, timeVoronoi2, density
+  alt_pack    : vec4f, // lowAltDensity, altitude, factorMacro, factorDetail
+  scale_pack  : vec4f, // factorShaper, scaleAlt, scaleNoise, scaleVoronoi1
+  extra_pack  : vec4f, // scaleVoronoi2, detail, _pad0, _pad1
 };
 
 @group(0) @binding(0) var<uniform> camera : Camera;
@@ -50,76 +46,85 @@ fn mapRange(value : f32, fromMin : f32, fromMax : f32, toMin : f32, toMax : f32)
   return clamp(mix(toMin, toMax, t), min(toMin, toMax), max(toMin, toMax));
 }
 
+fn clamp01(v: f32) -> f32 {
+  return clamp(v, 0.0, 1.0);
+}
+
 // ------------------------------------------------------------
 // Cloud Density (100% Blender Node Graph Match)
 // ------------------------------------------------------------
 
 fn cloudDensity(pos : vec3f, is_cheap : bool) -> f32 {
-  let altitude     = params.altitude;
-  let factor       = params.factor;
-  let scale_param  = params.scale;
-  let time         = params.time;
-  let detail       = params.detail;
-  let lowAltDens   = params.lowAltDensity;
-  let densityParam = params.density;
+  let _unused = is_cheap;
+  let timeNoise     = params.time_pack.x;
+  let timeVoronoi1  = params.time_pack.y;
+  let timeVoronoi2  = params.time_pack.z;
+  let densityParam  = params.time_pack.w;
 
-  // Blender "Object" coordinates for a cloud layer
-  // We normalize our [ -4 to 4 ] world coords to something more manageable
-  // and map Y to Z for vertical parity.
-  let objPos = vec4f(pos.x, pos.z, pos.y, time * 0.1) / scale_param;
-  let Z = pos.y; // Vertical height [0, 1]
+  let lowAltDens    = params.alt_pack.x;
+  let altitude      = params.alt_pack.y;
+  let factorMacro   = params.alt_pack.z;
+  let factorDetail  = params.alt_pack.w;
+
+  let factorShaper  = params.scale_pack.x;
+  let scaleAlt      = params.scale_pack.y;
+  let scaleNoise    = params.scale_pack.z;
+  let scaleVoronoi1 = params.scale_pack.w;
+
+  let scaleVoronoi2 = params.extra_pack.x;
+  let detail        = params.extra_pack.y;
+
+  // Blender "Object" coordinates for a cloud layer (Z-up).
+  // World Y is treated as Blender Z.
+  let objPos = vec3f(pos.x, pos.z, pos.y);
+  let zNorm = (pos.y - BOX_MIN.y) / (BOX_MAX.y - BOX_MIN.y);
+  let Z = 1.0 - clamp(zNorm, 0.0, 1.0);
 
   // --- STAGE 1: Altitude Mask ---
-  // Map Range.010: map Z from [0, Alt*2] to [LowAlt, 1.0]
-  let altMaskRamp = mapRange(Z, 0.0, altitude * 2.0, lowAltDens, 1.0);
-  // Noise Texture: 4D, Scale 2.0, Detail 0.0
-  let stage1Noise = perlin_noise_4d(objPos * 2.0); // Factor [0, 1]
+  // Map Range.010: Z from [0, Altitude/5] -> [1 - LowAlt, 1]
+  let altFromMax = altitude / 5.0;
+  let altToMin = 1.0 - lowAltDens;
+  let altMaskRamp = mapRange(Z, 0.0, altFromMax, altToMin, 1.0);
+  // Noise Texture: 4D, Scale 2.0, Detail 0.0 (FBM normalized)
+  let noiseCoord = objPos / scaleNoise;
+  let stage1Noise = node_noise_texture_4d_value(
+    noiseCoord, timeNoise, 2.0, 0.0, 0.0, 0.0, 0.0, 1.0);
   // Math.008: Multiply (clamped)
-  let altitudeMask = clamp(altMaskRamp * stage1Noise, 0.0, 1.0);
+  let altitudeMask = clamp01(altMaskRamp * stage1Noise);
 
   // --- STAGE 2: Macro Voronoi ---
-  // Voronoi Texture.004: 4D, F1, Scale 5.0
-  // Note: Using fast version for performance, but 100% logic
-  let v1dist = voronoi_f1_4d_fast(objPos * 5.0, 1.0);
-  // Map Range.001: [0, 1] -> [Factor*0.5, Factor]
-  let v1mapped = mapRange(v1dist, 0.0, 1.0, factor * 0.5, factor);
-  // Math.003: ADD Stage1 + (v1mapped * 0.5) (clamped)
-  let stage2 = clamp(altitudeMask + v1mapped * 0.5, 0.0, 1.0);
-
-  if (is_cheap) {
-    return stage2 * densityParam * 300.0;
-  }
+  let v1Coord = objPos / scaleVoronoi1;
+  let v1dist = node_tex_voronoi_f1_4d_distance(
+    v1Coord, timeVoronoi1, 5.0, detail, 0.5, 3.0, 1.0, 0.5, 1.0, 0.0, 1.0);
+  let v1mapped = mapRange(v1dist, 0.0, 0.75, factorMacro * -0.4, factorMacro);
+  let v1scaled = clamp01(v1mapped * 0.5); // Math.012
+  let stage2 = clamp01(altitudeMask + v1scaled); // Math.003
 
   // --- STAGE 3: Medium Voronoi Detail ---
-  // Voronoi Texture.003: 4D, F1, Scale 2.0, Detail = Detail * 5.0
-  let v2dist = fractal_voronoi_4d_fast(objPos * 2.0, detail * 5.0, 0.75, 2.5);
-  // Map Range.002: [0, 1] -> [Factor*0.5, Factor]
-  let v2mapped = mapRange(v2dist, 0.0, 1.0, factor * 0.5, factor);
-  // Math.004: ADD Stage2 + v2mapped (clamped)
-  let stage3 = clamp(stage2 + v2mapped, 0.0, 1.0);
+  let v2Coord = objPos / scaleVoronoi2;
+  let v2dist = node_tex_voronoi_f1_4d_distance(
+    v2Coord, timeVoronoi2, 2.0, detail * 5.0, 0.75, 2.5, 1.0, 0.5, 1.0, 0.0, 1.0);
+  let v2mapped = mapRange(v2dist, 0.0, 1.0, factorDetail * -0.25, factorDetail);
+  let stage3 = clamp01(stage2 + v2mapped); // Math.004
 
   // --- STAGE 4: Upper Altitude Cutoff ---
-  // Map Range.008: From [Altitude * Scale, 1.0] to [0.0, 1.0]
-  let cutoff = mapRange(Z, altitude * scale_param, 1.0, 0.0, 1.0);
-  // Math.020: Subtract (clamped)
-  let shaped = clamp(stage3 - cutoff, 0.0, 1.0);
-  // Math.005: Subtract (1.0 - factor) (clamped)
-  let finalShaped = clamp(shaped - (1.0 - factor), 0.0, 1.0);
+  let cutoffFromMin = altitude * scaleAlt;
+  let cutoff = mapRange(Z, cutoffFromMin, 0.0, 0.0, 1.0); // Map Range.008 (Blender)
+  let shaped = clamp01(stage3 - cutoff); // Math.020
+  let finalShaped = clamp01(shaped - (1.0 - factorShaper)); // Math.005
 
   // --- STAGE 5: Final Multipliers ---
-  // Map Range.009: From Max = Altitude
-  let falloff = mapRange(Z, 0.0, altitude, 0.0, 1.0);
-  // Math.016: stage4 * falloff * (density * 0.5)
-  // Scaling by 300.0 to match WebGPU raymarching opacity needs
-  return finalShaped * falloff * (densityParam * 0.5) * 300.0;
+  let falloff = mapRange(Z, 0.0, altitude, 0.0, 1.0); // Map Range.009
+  let densityScale = densityParam * 5.0; // Tune for WebGPU raymarching
+  return finalShaped * falloff * densityScale; // Math.016
 }
 
 // ============================================================
 // Ray Marching
 // ============================================================
 
-const BOX_MIN = vec3f(-6.0, 0.0, -6.0); // Slightly larger box
-const BOX_MAX = vec3f( 6.0, 1.0,  6.0);
+const BOX_MIN = vec3f(-4.5, 0.0, -4.5); // Reduced bounds
+const BOX_MAX = vec3f( 4.5, 1.2,  4.5);
 
 struct HitInfo {
   hit   : bool,
@@ -139,8 +144,8 @@ fn intersectBox(ro : vec3f, rd : vec3f) -> HitInfo {
 }
 
 const SUN_DIR   = vec3f(0.189, 0.943, 0.283); 
-const SUN_COLOR = vec3f(1.0, 0.98, 0.94);
-const AMBIENT   = vec3f(0.15, 0.2, 0.35);
+const SUN_COLOR = vec3f(1.0, 1.0, 1.0);
+const AMBIENT   = vec3f(0.22, 0.26, 0.38);
 const BG_COLOR  = vec3f(0.075, 0.145, 0.25);
 const NUM_STEPS = 48; 
 
