@@ -267,6 +267,10 @@ async function initWebGPU() {
     detail: 1.0,
     windSpeed: 0.05,
     skipLight: false,
+    rayMarchSteps: 48,
+    lightMarchSteps: 4,
+    shadowDarkness: 5,
+    sunIntensity: 17,
     cacheResolution: 96,
     cacheUpdateRate: 2,
     cacheSmooth: 0,
@@ -280,6 +284,10 @@ async function initWebGPU() {
   gui.add(params, 'detail', 0.0, 15.0, 0.5);
   gui.add(params, 'windSpeed', 0.0, 2.0, 0.05);
   gui.add(params, 'skipLight').name('Skip Light March');
+  gui.add(params, 'rayMarchSteps', 16, 64, 1).name('Ray Steps');
+  gui.add(params, 'lightMarchSteps', 1, 8, 1).name('Light Steps');
+  gui.add(params, 'shadowDarkness', 0.5, 20.0, 0.1).name('Shadow Dark');
+  gui.add(params, 'sunIntensity', 0.5, 20.0, 0.1).name('Sun Intensity');
   gui.add(params, 'cacheResolution', 32, 128, 1).name('Cache Res').onFinishChange(v => {
     const next = Math.max(32, Math.min(128, Math.round(v)));
     params.cacheResolution = next;
@@ -322,12 +330,12 @@ async function initWebGPU() {
     paramsData[11] = scale;
     paramsData[12] = scale;
     paramsData[13] = detail;
-    paramsData[14] = 0.0;
+    paramsData[14] = params.rayMarchSteps;
     paramsData[15] = params.skipLight ? 1.0 : 0.0;
     paramsData[16] = cacheBlend;
-    paramsData[17] = 0.0;
-    paramsData[18] = 0.0;
-    paramsData[19] = 0.0;
+    paramsData[17] = params.lightMarchSteps;
+    paramsData[18] = params.shadowDarkness;
+    paramsData[19] = params.sunIntensity;
     return paramsData;
   }
   const stats = new Stats();

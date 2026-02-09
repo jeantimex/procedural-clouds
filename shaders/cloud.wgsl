@@ -12,8 +12,8 @@ struct Params {
   time_pack   : vec4f, // timeNoise, timeVoronoi1, timeVoronoi2, density
   alt_pack    : vec4f, // lowAltDensity, altitude, factorMacro, factorDetail
   scale_pack  : vec4f, // factorShaper, scaleAlt, scaleNoise, scaleVoronoi1
-  extra_pack  : vec4f, // scaleVoronoi2, detail, unused, skipLight
-  cache_pack  : vec4f, // cacheBlend, _pad0, _pad1, _pad2
+  extra_pack  : vec4f, // scaleVoronoi2, detail, rayMarchSteps, skipLight
+  cache_pack  : vec4f, // cacheBlend, lightMarchSteps, shadowDarkness, sunIntensity
 };
 
 @group(0) @binding(0) var<uniform> camera : Camera;
@@ -160,7 +160,6 @@ const SUN_DIR   = vec3f(0.189, 0.943, 0.283);
 const SUN_COLOR = vec3f(1.0, 1.0, 1.0);
 const AMBIENT   = vec3f(0.26, 0.30, 0.42);
 const BG_COLOR  = vec3f(0.045, 0.10, 0.18);
-const NUM_STEPS = 48;
 
 fn hgPhase(cosTheta: f32, g: f32) -> f32 {
     let g2 = g * g;
@@ -169,13 +168,13 @@ fn hgPhase(cosTheta: f32, g: f32) -> f32 {
 
 fn lightMarch(pos : vec3f) -> f32 {
   var shadow = 0.0;
-  let steps = 4;
+  let steps = i32(params.cache_pack.y);
   let stepSize = 0.15;
   for (var i = 1; i <= steps; i++) {
     let p = pos + SUN_DIR * (f32(i) * stepSize);
     shadow += sampleDensity(p) * stepSize;
   }
-  return exp(-shadow * 1.5); 
+  return exp(-shadow * params.cache_pack.z); 
 }
 
 fn interleavedGradientNoise(uv: vec2f) -> f32 {
@@ -186,6 +185,7 @@ fn interleavedGradientNoise(uv: vec2f) -> f32 {
 @fragment
 fn fs(@builtin(position) fragCoord : vec4f, @location(0) uv : vec2f) -> @location(0) vec4f {
   let skipLight = params.extra_pack.w > 0.5;
+  let numSteps = i32(params.extra_pack.z);
   let world_near = camera.invViewProj * vec4f(uv, 0.0, 1.0);
   let world_far  = camera.invViewProj * vec4f(uv, 1.0, 1.0);
   let ro = camera.position;
@@ -202,7 +202,7 @@ fn fs(@builtin(position) fragCoord : vec4f, @location(0) uv : vec2f) -> @locatio
   if (hit.hit) {
     let tEntry = max(hit.tNear, 0.0);
     let tExit  = hit.tFar;
-    let stepSize = (tExit - tEntry) / f32(NUM_STEPS);
+    let stepSize = (tExit - tEntry) / f32(numSteps);
     let dither = interleavedGradientNoise(fragCoord.xy);
     
     var pos = ro + rd * (tEntry + stepSize * dither);
@@ -210,13 +210,13 @@ fn fs(@builtin(position) fragCoord : vec4f, @location(0) uv : vec2f) -> @locatio
     var color = vec3f(0.0);
     let phase = mix(1.0, hgPhase(sunTheta, 0.45), 0.6);
 
-    for (var i = 0; i < NUM_STEPS; i++) {
+    for (var i = 0; i < numSteps; i++) {
       let d = sampleDensity(pos);
       if (d > 0.01) {
         let step_trans = exp(-d * stepSize);
         let shadow = select(lightMarch(pos), 1.0, skipLight);
         let scattering = shadow * phase * (1.0 - exp(-d * 1.0));
-        let litColor = SUN_COLOR * scattering * 3.5 + AMBIENT * 0.5;
+        let litColor = SUN_COLOR * scattering * params.cache_pack.w + AMBIENT * 0.5;
 
         color += transmittance * (1.0 - step_trans) * litColor;
         transmittance *= step_trans;
