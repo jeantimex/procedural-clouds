@@ -96,8 +96,11 @@ fn cloudDensity(pos : vec3f, is_cheap : bool) -> f32 {
   // --- STAGE 2: Macro Voronoi ---
   let v1Coord = objPos / scaleVoronoi1;
   let v1Detail = select(detail, min(detail, 2.0), fastMode);
-  let v1dist = node_tex_voronoi_f1_4d_distance(
-    v1Coord, timeVoronoi1, 5.0, v1Detail, 0.5, 3.0, 1.0, 0.5, 1.0, 0.0, 1.0);
+  let v1dist = select(
+    node_tex_voronoi_f1_4d_distance(v1Coord, timeVoronoi1, 5.0, v1Detail, 0.5, 3.0, 1.0, 0.5, 1.0, 0.0, 1.0),
+    node_tex_voronoi_f1_4d_distance_fast(v1Coord, timeVoronoi1, 5.0, v1Detail, 0.5, 3.0, 1.0, 0.5, 1.0, 0.0, 1.0),
+    fastMode
+  );
   let v1mapped = mapRange(v1dist, 0.0, 0.75, factorMacro * -0.4, factorMacro);
   let v1scaled = clamp01(v1mapped * 0.5); // Math.012
   let stage2 = clamp01(altitudeMask + v1scaled); // Math.003
@@ -105,8 +108,11 @@ fn cloudDensity(pos : vec3f, is_cheap : bool) -> f32 {
   // --- STAGE 3: Medium Voronoi Detail ---
   let v2Coord = objPos / scaleVoronoi2;
   let v2Detail = select(detail * 5.0, min(detail * 5.0, 3.0), fastMode);
-  let v2dist = node_tex_voronoi_f1_4d_distance(
-    v2Coord, timeVoronoi2, 2.0, v2Detail, 0.75, 2.5, 1.0, 0.5, 1.0, 0.0, 1.0);
+  let v2dist = select(
+    node_tex_voronoi_f1_4d_distance(v2Coord, timeVoronoi2, 2.0, v2Detail, 0.75, 2.5, 1.0, 0.5, 1.0, 0.0, 1.0),
+    node_tex_voronoi_f1_4d_distance_fast(v2Coord, timeVoronoi2, 2.0, v2Detail, 0.75, 2.5, 1.0, 0.5, 1.0, 0.0, 1.0),
+    fastMode
+  );
   let v2mapped = mapRange(v2dist, 0.0, 1.0, factorDetail * -0.25, factorDetail);
   let stage3 = clamp01(stage2 + v2mapped); // Math.004
 
@@ -151,7 +157,7 @@ const SUN_COLOR = vec3f(1.0, 1.0, 1.0);
 const AMBIENT   = vec3f(0.26, 0.30, 0.42);
 const BG_COLOR  = vec3f(0.045, 0.10, 0.18);
 const NUM_STEPS_ACCURATE = 48;
-const NUM_STEPS_FAST = 24;
+const NUM_STEPS_FAST = 16;
 
 fn hgPhase(cosTheta: f32, g: f32) -> f32 {
     let g2 = g * g;
@@ -211,7 +217,8 @@ fn fs(@builtin(position) fragCoord : vec4f, @location(0) uv : vec2f) -> @locatio
 
         color += transmittance * (1.0 - step_trans) * litColor;
         transmittance *= step_trans;
-        if (transmittance < 0.01) { break; }
+        let cutoff = select(0.01, 0.05, fastMode);
+        if (transmittance < cutoff) { break; }
       }
       pos += rd * stepSize;
     }
