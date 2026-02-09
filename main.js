@@ -297,6 +297,10 @@ async function initWebGPU() {
   let prevCacheTime = 0.0;
   let nextCacheTime = 0.0;
 
+  // Pre-allocated buffers to avoid GC pressure
+  const paramsData = new Float32Array(20);
+  const cameraData = new Float32Array(20);
+
   function buildParams(time, cacheBlend) {
     const density = params.density;
     const altitude = params.altitude;
@@ -304,13 +308,27 @@ async function initWebGPU() {
     const scale = params.scale;
     const detail = params.detail;
 
-    return new Float32Array([
-      time, time, time, density,
-      0.2, altitude, factorMacro, 1.0,
-      1.0, scale, scale, scale,
-      scale, detail, 0.0, params.skipLight ? 1.0 : 0.0,
-      cacheBlend, 0.0, 0.0, 0.0
-    ]);
+    paramsData[0] = time;
+    paramsData[1] = time;
+    paramsData[2] = time;
+    paramsData[3] = density;
+    paramsData[4] = 0.2;
+    paramsData[5] = altitude;
+    paramsData[6] = factorMacro;
+    paramsData[7] = 1.0;
+    paramsData[8] = 1.0;
+    paramsData[9] = scale;
+    paramsData[10] = scale;
+    paramsData[11] = scale;
+    paramsData[12] = scale;
+    paramsData[13] = detail;
+    paramsData[14] = 0.0;
+    paramsData[15] = params.skipLight ? 1.0 : 0.0;
+    paramsData[16] = cacheBlend;
+    paramsData[17] = 0.0;
+    paramsData[18] = 0.0;
+    paramsData[19] = 0.0;
+    return paramsData;
   }
   const stats = new Stats();
   stats.showPanel(0);
@@ -337,9 +355,10 @@ async function initWebGPU() {
     const invViewProj = mat4Invert(viewProj);
 
     // Write camera uniform
-    const cameraData = new Float32Array(20);
     cameraData.set(invViewProj, 0);
-    cameraData.set(eye, 16);
+    cameraData[16] = eye[0];
+    cameraData[17] = eye[1];
+    cameraData[18] = eye[2];
     device.queue.writeBuffer(cameraBuffer, 0, cameraData);
 
     // Sync params with UI
