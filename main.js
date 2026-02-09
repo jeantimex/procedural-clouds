@@ -206,6 +206,7 @@ async function initWebGPU() {
     altitude: 0.5,
     detail: 1.0,
     windSpeed: 0.0,
+    performance: true,
   };
 
   const gui = new GUI({ title: 'Cloud Parameters' });
@@ -215,6 +216,7 @@ async function initWebGPU() {
   gui.add(params, 'altitude', 0.1, 1.0, 0.01);
   gui.add(params, 'detail', 0.0, 15.0, 0.5);
   gui.add(params, 'windSpeed', 0.0, 2.0, 0.05);
+  gui.add(params, 'performance').name('Performance Mode');
 
   // --- Render loop ---
   const startTime = performance.now();
@@ -256,7 +258,7 @@ async function initWebGPU() {
       time, time, time, density,
       0.2, altitude, factorMacro, 1.0,
       1.0, scale, scale, scale,
-      scale, detail, 0.0, 0.0
+      scale, detail, params.performance ? 1.0 : 0.0, 0.0
     ]);
     device.queue.writeBuffer(paramsBuffer, 0, paramsData);
 
