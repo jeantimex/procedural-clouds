@@ -1,4 +1,7 @@
-import shaderSource from './shaders/cloud.wgsl?raw';
+import cloudSource from './shaders/cloud.wgsl?raw';
+import noiseSource from './shaders/noise.wgsl?raw';
+
+const shaderSource = noiseSource + cloudSource;
 
 // ============================================================
 // Matrix math helpers (column-major, matches WebGPU std140)
@@ -152,7 +155,7 @@ async function initWebGPU() {
   // --- Camera setup ---
   let camTheta = Math.PI / 4;
   let camPhi = 0.5;
-  let camDist = 6.0;
+  let camDist = 10.0;
   const target = [0.0, 0.5, 0.0];
   const up = [0.0, 1.0, 0.0];
 
@@ -214,12 +217,12 @@ async function initWebGPU() {
   };
 
   // Set better defaults on sliders
-  controls.density.value = 3.35;
-  controls.coverage.value = 0.28;
-  controls.scale.value = 0.95;
-  controls.altitude.value = 0.75;
-  controls.detail.value = 12.50;
-  controls.windSpeed.value = 0.80;
+  controls.density.value = 1.0;
+  controls.coverage.value = 0.65;
+  controls.scale.value = 1.5;
+  controls.altitude.value = 0.5;
+  controls.detail.value = 5.0;
+  controls.windSpeed.value = 0.5;
 
   Object.keys(controls).forEach(key => {
     controls[key].addEventListener('input', () => {
