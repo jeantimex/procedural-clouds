@@ -411,3 +411,4 @@ fn node_tex_voronoi_f1_4d_distance(
     let Output = fractal_voronoi_x_fx(params, vec4f(coord_scaled, w_scaled));
     return Output.Distance;
 }
+

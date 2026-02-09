@@ -1,6 +1,7 @@
 import cloudSource from './shaders/cloud.wgsl?raw';
 import noiseSource from './shaders/noise.wgsl?raw';
 import GUI from 'lil-gui';
+import Stats from 'stats.js';
 
 const shaderSource = noiseSource + cloudSource;
 
@@ -131,6 +132,15 @@ async function initWebGPU() {
     },
   });
 
+  // --- Compute pipeline (density cache) ---
+  const computePipeline = device.createComputePipeline({
+    layout: 'auto',
+    compute: {
+      module: shaderModule,
+      entryPoint: 'cs',
+    },
+  });
+
   // --- Camera uniform buffer ---
   // Layout: mat4x4f (64 bytes) + vec3f (12 bytes) + f32 pad (4 bytes) = 80 bytes
   const cameraBuffer = device.createBuffer({
@@ -139,9 +149,9 @@ async function initWebGPU() {
   });
 
   // --- Params uniform buffer ---
-  // Layout: 4 x vec4f = 64 bytes
+  // Layout: 6 x vec4f = 96 bytes
   const paramsBuffer = device.createBuffer({
-    size: 64,
+    size: 96,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
 
@@ -153,10 +163,62 @@ async function initWebGPU() {
     ],
   });
 
+  // --- Density cache texture ---
+  const linearSampler = device.createSampler({
+    magFilter: 'linear',
+    minFilter: 'linear',
+    addressModeU: 'clamp-to-edge',
+    addressModeV: 'clamp-to-edge',
+    addressModeW: 'clamp-to-edge',
+  });
+  let densityRes = 96;
+  let densityTextures = [null, null];
+  let densitySampleBindGroup = null;
+  let densityStoreBindGroup = null;
+
+  function createDensityResources(res) {
+    for (const t of densityTextures) {
+      if (t) t.destroy();
+    }
+    densityTextures = [0, 1].map(() => device.createTexture({
+      size: [res, res, res],
+      dimension: '3d',
+      format: 'rgba16float',
+      usage: GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING,
+    }));
+
+    densityStoreBindGroup = device.createBindGroup({
+      layout: computePipeline.getBindGroupLayout(2),
+      entries: [
+        { binding: 0, resource: densityTextures[0].createView({ dimension: '3d' }) },
+      ],
+    });
+    densitySampleBindGroup = device.createBindGroup({
+      layout: pipeline.getBindGroupLayout(1),
+      entries: [
+        { binding: 0, resource: linearSampler },
+        { binding: 1, resource: densityTextures[0].createView({ dimension: '3d' }) },
+        { binding: 2, resource: densityTextures[1].createView({ dimension: '3d' }) },
+      ],
+    });
+  }
+
+  createDensityResources(densityRes);
+
+  const computeBindGroup = device.createBindGroup({
+    layout: computePipeline.getBindGroupLayout(0),
+    entries: [
+      { binding: 1, resource: { buffer: paramsBuffer } },
+    ],
+  });
+
   // --- Camera setup ---
   let camTheta = Math.PI / 4;
   let camPhi = 0.5;
   let camDist = 10.0;
+  let targetTheta = camTheta;
+  let targetPhi = camPhi;
+  let targetDist = camDist;
   const target = [0.0, 0.5, 0.0];
   const up = [0.0, 1.0, 0.0];
 
@@ -174,8 +236,8 @@ async function initWebGPU() {
     if (!isDragging) return;
     const dx = e.clientX - lastMouse[0];
     const dy = e.clientY - lastMouse[1];
-    camTheta -= dx * 0.005;
-    camPhi = Math.max(0.1, Math.min(1.4, camPhi + dy * 0.005));
+    targetTheta -= dx * 0.005;
+    targetPhi = Math.max(0.1, Math.min(1.4, targetPhi + dy * 0.005));
     lastMouse = [e.clientX, e.clientY];
   });
 
@@ -185,12 +247,12 @@ async function initWebGPU() {
   });
 
   canvas.addEventListener('wheel', e => {
-    camDist = Math.max(2.0, Math.min(20.0, camDist + e.deltaY * 0.005));
+    targetDist = Math.max(2.0, Math.min(20.0, targetDist + e.deltaY * 0.005));
     e.preventDefault();
   }, { passive: false });
 
   function resize() {
-    const dpr = 1.0; 
+    const dpr = window.devicePixelRatio || 1; 
     canvas.width = canvas.clientWidth * dpr;
     canvas.height = canvas.clientHeight * dpr;
   }
@@ -205,25 +267,100 @@ async function initWebGPU() {
     scale: 3.75,
     altitude: 0.5,
     detail: 1.0,
-    windSpeed: 0.0,
+    windSpeed: 0.05,
+    skipLight: false,
+    rayMarchSteps: 48,
+    lightMarchSteps: 4,
+    shadowDarkness: 5,
+    sunIntensity: 17,
+    cloudHeight: 1.5,
+    cacheResolution: 96,
+    cacheUpdateRate: 2,
+    cacheSmooth: 0,
   };
 
   const gui = new GUI({ title: 'Cloud Parameters' });
   gui.add(params, 'density', 0.1, 4.0, 0.05);
   gui.add(params, 'coverage', 0.0, 1.0, 0.01);
-  gui.add(params, 'scale', 0.2, 4.0, 0.05);
+  gui.add(params, 'scale', 0.2, 15.0, 0.05);
   gui.add(params, 'altitude', 0.1, 1.0, 0.01);
   gui.add(params, 'detail', 0.0, 15.0, 0.5);
   gui.add(params, 'windSpeed', 0.0, 2.0, 0.05);
+  gui.add(params, 'skipLight').name('Skip Light March');
+  gui.add(params, 'rayMarchSteps', 16, 64, 1).name('Ray Steps');
+  gui.add(params, 'lightMarchSteps', 1, 8, 1).name('Light Steps');
+  gui.add(params, 'shadowDarkness', 0.5, 20.0, 0.1).name('Shadow Dark');
+  gui.add(params, 'sunIntensity', 0.5, 20.0, 0.1).name('Sun Intensity');
+  gui.add(params, 'cloudHeight', 0.5, 5.0, 0.1).name('Cloud Height');
+  gui.add(params, 'cacheResolution', 32, 128, 1).name('Cache Res').onFinishChange(v => {
+    const next = Math.max(32, Math.min(128, Math.round(v)));
+    params.cacheResolution = next;
+    densityRes = next;
+    createDensityResources(densityRes);
+  });
+  gui.add(params, 'cacheUpdateRate', 1, 4, 1).name('Cache Update');
+  gui.add(params, 'cacheSmooth', 0.0, 0.95, 0.01).name('Cache Smooth');
 
   // --- Render loop ---
   const startTime = performance.now();
 
+  let frameIndex = 0;
+  let cacheIndex = 0;
+  let prevCacheTime = 0.0;
+  let nextCacheTime = 0.0;
+
+  // Pre-allocated buffers to avoid GC pressure
+  const paramsData = new Float32Array(24);
+  const cameraData = new Float32Array(20);
+
+  function buildParams(time, cacheBlend) {
+    const density = params.density;
+    const altitude = params.altitude;
+    const factorMacro = params.coverage;
+    const scale = params.scale;
+    const detail = params.detail;
+
+    paramsData[0] = time;
+    paramsData[1] = time;
+    paramsData[2] = time;
+    paramsData[3] = density;
+    paramsData[4] = 0.2;
+    paramsData[5] = altitude;
+    paramsData[6] = factorMacro;
+    paramsData[7] = 1.0;
+    paramsData[8] = 1.0;
+    paramsData[9] = scale;
+    paramsData[10] = scale;
+    paramsData[11] = scale;
+    paramsData[12] = scale;
+    paramsData[13] = detail;
+    paramsData[14] = params.rayMarchSteps;
+    paramsData[15] = params.skipLight ? 1.0 : 0.0;
+    paramsData[16] = cacheBlend;
+    paramsData[17] = params.lightMarchSteps;
+    paramsData[18] = params.shadowDarkness;
+    paramsData[19] = params.sunIntensity;
+    paramsData[20] = params.cloudHeight;
+    paramsData[21] = 1.0;
+    paramsData[22] = 0.0;
+    paramsData[23] = 0.0;
+    return paramsData;
+  }
+  const stats = new Stats();
+  stats.showPanel(0);
+  document.body.appendChild(stats.dom);
+
   function frame() {
-    resize();
+    stats.begin();
+    frameIndex++;
 
     const elapsed = (performance.now() - startTime) / 1000.0;
     const windSpeed = params.windSpeed;
+
+    // Smooth camera inertia
+    camTheta += (targetTheta - camTheta) * 0.12;
+    camPhi += (targetPhi - camPhi) * 0.12;
+    camDist += (targetDist - camDist) * 0.12;
 
     // Orbit camera
     const eye = [
@@ -239,28 +376,45 @@ async function initWebGPU() {
     const invViewProj = mat4Invert(viewProj);
 
     // Write camera uniform
-    const cameraData = new Float32Array(20);
     cameraData.set(invViewProj, 0);
-    cameraData.set(eye, 16);
+    cameraData[16] = eye[0];
+    cameraData[17] = eye[1];
+    cameraData[18] = eye[2];
     device.queue.writeBuffer(cameraBuffer, 0, cameraData);
 
     // Sync params with UI
     const time = elapsed * windSpeed;
-    const density = params.density;
-    const altitude = params.altitude;
-    const factorMacro = params.coverage;
-    const scale = params.scale;
-    const detail = params.detail;
+    const blendDenom = Math.max(1e-5, nextCacheTime - prevCacheTime);
+    const linearBlend = Math.min(1.0, Math.max(0.0, (time - prevCacheTime) / blendDenom));
+    let cacheBlend = linearBlend;
+    if (params.cacheSmooth > 0.0) {
+      cacheBlend = Math.pow(linearBlend, 1.0 / (1.0 + params.cacheSmooth * 4.0));
+    }
 
-    const paramsData = new Float32Array([
-      time, time, time, density,
-      0.2, altitude, factorMacro, 1.0,
-      1.0, scale, scale, scale,
-      scale, detail, 0.0, 0.0
-    ]);
-    device.queue.writeBuffer(paramsBuffer, 0, paramsData);
+    device.queue.writeBuffer(paramsBuffer, 0, buildParams(time, cacheBlend));
 
     const commandEncoder = device.createCommandEncoder();
+
+    // --- Compute density cache ---
+    if (frameIndex % params.cacheUpdateRate === 0) {
+      prevCacheTime = nextCacheTime;
+      nextCacheTime = time;
+      cacheIndex = 1 - cacheIndex;
+
+      densityStoreBindGroup = device.createBindGroup({
+        layout: computePipeline.getBindGroupLayout(2),
+        entries: [
+          { binding: 0, resource: densityTextures[cacheIndex].createView({ dimension: '3d' }) },
+        ],
+      });
+
+      const pass = commandEncoder.beginComputePass();
+      pass.setPipeline(computePipeline);
+      pass.setBindGroup(0, computeBindGroup);
+      pass.setBindGroup(2, densityStoreBindGroup);
+      pass.dispatchWorkgroups(Math.ceil(densityRes / 8), Math.ceil(densityRes / 8), Math.ceil(densityRes / 4));
+      pass.end();
+    }
     const textureView = context.getCurrentTexture().createView();
 
     const renderPass = commandEncoder.beginRenderPass({
@@ -276,10 +430,12 @@ async function initWebGPU() {
 
     renderPass.setPipeline(pipeline);
     renderPass.setBindGroup(0, bindGroup);
+    renderPass.setBindGroup(1, densitySampleBindGroup);
     renderPass.draw(3); // full-screen triangle
     renderPass.end();
 
     device.queue.submit([commandEncoder.finish()]);
+    stats.end();
     requestAnimationFrame(frame);
   }
 

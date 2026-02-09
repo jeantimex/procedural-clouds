@@ -12,11 +12,17 @@ struct Params {
   time_pack   : vec4f, // timeNoise, timeVoronoi1, timeVoronoi2, density
   alt_pack    : vec4f, // lowAltDensity, altitude, factorMacro, factorDetail
   scale_pack  : vec4f, // factorShaper, scaleAlt, scaleNoise, scaleVoronoi1
-  extra_pack  : vec4f, // scaleVoronoi2, detail, _pad0, _pad1
+  extra_pack  : vec4f, // scaleVoronoi2, detail, rayMarchSteps, skipLight
+  cache_pack  : vec4f, // cacheBlend, lightMarchSteps, shadowDarkness, sunIntensity
+  bounds_pack : vec4f, // cloudHeight, _pad1, _pad2, _pad3
 };
 
 @group(0) @binding(0) var<uniform> camera : Camera;
 @group(0) @binding(1) var<uniform> params : Params;
+@group(1) @binding(0) var densitySampler : sampler;
+@group(1) @binding(1) var densityTex0 : texture_3d<f32>;
+@group(1) @binding(2) var densityTex1 : texture_3d<f32>;
+@group(2) @binding(0) var densityStore : texture_storage_3d<rgba16float, write>;
 
 // ============================================================
 // Vertex
@@ -50,12 +56,23 @@ fn clamp01(v: f32) -> f32 {
   return clamp(v, 0.0, 1.0);
 }
 
+fn sampleDensity(pos: vec3f) -> f32 {
+  let uvw = (pos - BOX_MIN) / (getBoxMax() - BOX_MIN);
+  if (any(uvw < vec3f(0.0)) || any(uvw > vec3f(1.0))) {
+    return 0.0;
+  }
+  let a = textureSampleLevel(densityTex0, densitySampler, uvw, 0.0).r;
+  let b = textureSampleLevel(densityTex1, densitySampler, uvw, 0.0).r;
+  let blend = clamp(params.cache_pack.x, 0.0, 1.0);
+  let density = mix(a, b, blend);
+  return density;
+}
+
 // ------------------------------------------------------------
 // Cloud Density (100% Blender Node Graph Match)
 // ------------------------------------------------------------
 
-fn cloudDensity(pos : vec3f, is_cheap : bool) -> f32 {
-  let _unused = is_cheap;
+fn cloudDensity(pos : vec3f) -> f32 {
   let timeNoise     = params.time_pack.x;
   let timeVoronoi1  = params.time_pack.y;
   let timeVoronoi2  = params.time_pack.z;
@@ -77,7 +94,7 @@ fn cloudDensity(pos : vec3f, is_cheap : bool) -> f32 {
   // Blender "Object" coordinates for a cloud layer (Z-up).
   // World Y is treated as Blender Z.
   let objPos = vec3f(pos.x, pos.z, pos.y);
-  let zNorm = (pos.y - BOX_MIN.y) / (BOX_MAX.y - BOX_MIN.y);
+  let zNorm = (pos.y - BOX_MIN.y) / (getBoxMax().y - BOX_MIN.y);
   let Z = 1.0 - clamp(zNorm, 0.0, 1.0);
 
   // --- STAGE 1: Altitude Mask ---
@@ -94,16 +111,14 @@ fn cloudDensity(pos : vec3f, is_cheap : bool) -> f32 {
 
   // --- STAGE 2: Macro Voronoi ---
   let v1Coord = objPos / scaleVoronoi1;
-  let v1dist = node_tex_voronoi_f1_4d_distance(
-    v1Coord, timeVoronoi1, 5.0, detail, 0.5, 3.0, 1.0, 0.5, 1.0, 0.0, 1.0);
+  let v1dist = node_tex_voronoi_f1_4d_distance(v1Coord, timeVoronoi1, 5.0, detail, 0.5, 3.0, 1.0, 0.5, 1.0, 0.0, 1.0);
   let v1mapped = mapRange(v1dist, 0.0, 0.75, factorMacro * -0.4, factorMacro);
   let v1scaled = clamp01(v1mapped * 0.5); // Math.012
   let stage2 = clamp01(altitudeMask + v1scaled); // Math.003
 
   // --- STAGE 3: Medium Voronoi Detail ---
   let v2Coord = objPos / scaleVoronoi2;
-  let v2dist = node_tex_voronoi_f1_4d_distance(
-    v2Coord, timeVoronoi2, 2.0, detail * 5.0, 0.75, 2.5, 1.0, 0.5, 1.0, 0.0, 1.0);
+  let v2dist = node_tex_voronoi_f1_4d_distance(v2Coord, timeVoronoi2, 2.0, detail * 5.0, 0.75, 2.5, 1.0, 0.5, 1.0, 0.0, 1.0);
   let v2mapped = mapRange(v2dist, 0.0, 1.0, factorDetail * -0.25, factorDetail);
   let stage3 = clamp01(stage2 + v2mapped); // Math.004
 
@@ -124,7 +139,11 @@ fn cloudDensity(pos : vec3f, is_cheap : bool) -> f32 {
 // ============================================================
 
 const BOX_MIN = vec3f(-4.5, 0.0, -4.5); // Reduced bounds
-const BOX_MAX = vec3f( 4.5, 1.2,  4.5);
+const BOX_MAX_XZ = 4.5;
+
+fn getBoxMax() -> vec3f {
+  return vec3f(BOX_MAX_XZ, params.bounds_pack.x, BOX_MAX_XZ);
+}
 
 struct HitInfo {
   hit   : bool,
@@ -135,7 +154,7 @@ struct HitInfo {
 fn intersectBox(ro : vec3f, rd : vec3f) -> HitInfo {
   let invRd = 1.0 / rd;
   let t0 = (BOX_MIN - ro) * invRd;
-  let t1 = (BOX_MAX - ro) * invRd;
+  let t1 = (getBoxMax() - ro) * invRd;
   let tmin = min(t0, t1);
   let tmax = max(t0, t1);
   let tNear = max(tmin.x, max(tmin.y, tmin.z));
@@ -147,7 +166,6 @@ const SUN_DIR   = vec3f(0.189, 0.943, 0.283);
 const SUN_COLOR = vec3f(1.0, 1.0, 1.0);
 const AMBIENT   = vec3f(0.26, 0.30, 0.42);
 const BG_COLOR  = vec3f(0.045, 0.10, 0.18);
-const NUM_STEPS = 48; 
 
 fn hgPhase(cosTheta: f32, g: f32) -> f32 {
     let g2 = g * g;
@@ -156,13 +174,13 @@ fn hgPhase(cosTheta: f32, g: f32) -> f32 {
 
 fn lightMarch(pos : vec3f) -> f32 {
   var shadow = 0.0;
-  let steps = 4;
+  let steps = i32(params.cache_pack.y);
   let stepSize = 0.15;
   for (var i = 1; i <= steps; i++) {
     let p = pos + SUN_DIR * (f32(i) * stepSize);
-    shadow += cloudDensity(p, true) * stepSize;
+    shadow += sampleDensity(p) * stepSize;
   }
-  return exp(-shadow * 1.5); 
+  return exp(-shadow * params.cache_pack.z); 
 }
 
 fn interleavedGradientNoise(uv: vec2f) -> f32 {
@@ -172,6 +190,8 @@ fn interleavedGradientNoise(uv: vec2f) -> f32 {
 
 @fragment
 fn fs(@builtin(position) fragCoord : vec4f, @location(0) uv : vec2f) -> @location(0) vec4f {
+  let skipLight = params.extra_pack.w > 0.5;
+  let numSteps = i32(params.extra_pack.z);
   let world_near = camera.invViewProj * vec4f(uv, 0.0, 1.0);
   let world_far  = camera.invViewProj * vec4f(uv, 1.0, 1.0);
   let ro = camera.position;
@@ -188,7 +208,7 @@ fn fs(@builtin(position) fragCoord : vec4f, @location(0) uv : vec2f) -> @locatio
   if (hit.hit) {
     let tEntry = max(hit.tNear, 0.0);
     let tExit  = hit.tFar;
-    let stepSize = (tExit - tEntry) / f32(NUM_STEPS);
+    let stepSize = (tExit - tEntry) / f32(numSteps);
     let dither = interleavedGradientNoise(fragCoord.xy);
     
     var pos = ro + rd * (tEntry + stepSize * dither);
@@ -196,16 +216,18 @@ fn fs(@builtin(position) fragCoord : vec4f, @location(0) uv : vec2f) -> @locatio
     var color = vec3f(0.0);
     let phase = mix(1.0, hgPhase(sunTheta, 0.45), 0.6);
 
-    for (var i = 0; i < NUM_STEPS; i++) {
-      let d = cloudDensity(pos, false);
+    for (var i = 0; i < numSteps; i++) {
+      let d = sampleDensity(pos);
       if (d > 0.01) {
         let step_trans = exp(-d * stepSize);
-        let scattering = lightMarch(pos) * phase * (1.0 - exp(-d * 1.0));
-        let litColor = SUN_COLOR * scattering * 3.5 + AMBIENT * 0.5;
+        let shadow = select(lightMarch(pos), 1.0, skipLight);
+        let scattering = shadow * phase * (1.0 - exp(-d * 1.0));
+        let litColor = SUN_COLOR * scattering * params.cache_pack.w + AMBIENT * 0.5;
 
         color += transmittance * (1.0 - step_trans) * litColor;
         transmittance *= step_trans;
-        if (transmittance < 0.01) { break; }
+        let cutoff = 0.01;
+        if (transmittance < cutoff) { break; }
       }
       pos += rd * stepSize;
     }
@@ -215,4 +237,19 @@ fn fs(@builtin(position) fragCoord : vec4f, @location(0) uv : vec2f) -> @locatio
   outColor = outColor / (outColor + vec3f(1.0));
   outColor = pow(outColor, vec3f(1.0 / 2.2));
   return vec4f(outColor, 1.0);
+}
+
+// ============================================================
+// Density Cache Compute
+// ============================================================
+
+@compute @workgroup_size(8, 8, 4)
+fn cs(@builtin(global_invocation_id) gid : vec3u) {
+  let dims = textureDimensions(densityStore);
+  if (gid.x >= dims.x || gid.y >= dims.y || gid.z >= dims.z) { return; }
+
+  let uvw = (vec3f(gid) + 0.5) / vec3f(dims);
+  let pos = mix(BOX_MIN, getBoxMax(), uvw);
+  let d = cloudDensity(pos);
+  textureStore(densityStore, vec3i(gid), vec4f(d, 0.0, 0.0, 1.0));
 }
