@@ -164,9 +164,16 @@ async function initWebGPU() {
   });
 
   // --- Density cache texture ---
-  const densitySampler = device.createSampler({
+  const linearSampler = device.createSampler({
     magFilter: 'linear',
     minFilter: 'linear',
+    addressModeU: 'clamp-to-edge',
+    addressModeV: 'clamp-to-edge',
+    addressModeW: 'clamp-to-edge',
+  });
+  const nearestSampler = device.createSampler({
+    magFilter: 'nearest',
+    minFilter: 'nearest',
     addressModeU: 'clamp-to-edge',
     addressModeV: 'clamp-to-edge',
     addressModeW: 'clamp-to-edge',
@@ -175,6 +182,7 @@ async function initWebGPU() {
   let densityTextures = [null, null];
   let densitySampleBindGroup = null;
   let densityStoreBindGroup = null;
+  let useParticleMode = false;
 
   function createDensityResources(res) {
     for (const t of densityTextures) {
@@ -187,19 +195,24 @@ async function initWebGPU() {
       usage: GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING,
     }));
 
-    densitySampleBindGroup = device.createBindGroup({
-      layout: pipeline.getBindGroupLayout(1),
-      entries: [
-        { binding: 0, resource: densitySampler },
-        { binding: 1, resource: densityTextures[0].createView({ dimension: '3d' }) },
-        { binding: 2, resource: densityTextures[1].createView({ dimension: '3d' }) },
-      ],
-    });
+    updateSampler();
 
     densityStoreBindGroup = device.createBindGroup({
       layout: computePipeline.getBindGroupLayout(2),
       entries: [
         { binding: 0, resource: densityTextures[0].createView({ dimension: '3d' }) },
+      ],
+    });
+  }
+
+  function updateSampler() {
+    const sampler = useParticleMode ? nearestSampler : linearSampler;
+    densitySampleBindGroup = device.createBindGroup({
+      layout: pipeline.getBindGroupLayout(1),
+      entries: [
+        { binding: 0, resource: sampler },
+        { binding: 1, resource: densityTextures[0].createView({ dimension: '3d' }) },
+        { binding: 2, resource: densityTextures[1].createView({ dimension: '3d' }) },
       ],
     });
   }
@@ -272,6 +285,8 @@ async function initWebGPU() {
     shadowDarkness: 5,
     sunIntensity: 17,
     cloudHeight: 1.5,
+    sharpness: 1.0,
+    particleMode: false,
     cacheResolution: 96,
     cacheUpdateRate: 2,
     cacheSmooth: 0,
@@ -290,6 +305,11 @@ async function initWebGPU() {
   gui.add(params, 'shadowDarkness', 0.5, 20.0, 0.1).name('Shadow Dark');
   gui.add(params, 'sunIntensity', 0.5, 20.0, 0.1).name('Sun Intensity');
   gui.add(params, 'cloudHeight', 0.5, 5.0, 0.1).name('Cloud Height');
+  gui.add(params, 'sharpness', 0.5, 3.0, 0.1).name('Sharpness');
+  gui.add(params, 'particleMode').name('Particle Mode').onChange(v => {
+    useParticleMode = v;
+    updateSampler();
+  });
   gui.add(params, 'cacheResolution', 32, 128, 1).name('Cache Res').onFinishChange(v => {
     const next = Math.max(32, Math.min(128, Math.round(v)));
     params.cacheResolution = next;
@@ -339,7 +359,7 @@ async function initWebGPU() {
     paramsData[18] = params.shadowDarkness;
     paramsData[19] = params.sunIntensity;
     paramsData[20] = params.cloudHeight;
-    paramsData[21] = 0.0;
+    paramsData[21] = params.sharpness;
     paramsData[22] = 0.0;
     paramsData[23] = 0.0;
     return paramsData;
