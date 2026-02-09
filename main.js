@@ -250,7 +250,7 @@ async function initWebGPU() {
   }, { passive: false });
 
   function resize() {
-    const dpr = 1.0; 
+    const dpr = window.devicePixelRatio || 1; 
     canvas.width = canvas.clientWidth * dpr;
     canvas.height = canvas.clientHeight * dpr;
   }
