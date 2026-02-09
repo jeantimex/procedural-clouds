@@ -270,8 +270,6 @@ async function initWebGPU() {
     cacheResolution: 96,
     cacheUpdateRate: 1,
     cacheSmooth: 0.7,
-    twoTimeSlice: true,
-    cacheInterval: 0.1,
   };
 
   const gui = new GUI({ title: 'Cloud Parameters' });
@@ -290,8 +288,6 @@ async function initWebGPU() {
   });
   gui.add(params, 'cacheUpdateRate', 1, 4, 1).name('Cache Update');
   gui.add(params, 'cacheSmooth', 0.0, 0.95, 0.01).name('Cache Smooth');
-  gui.add(params, 'twoTimeSlice').name('Two-Time Slice');
-  gui.add(params, 'cacheInterval', 0.02, 0.5, 0.01).name('Cache Interval');
 
   // --- Render loop ---
   const startTime = performance.now();
@@ -361,48 +357,7 @@ async function initWebGPU() {
     const commandEncoder = device.createCommandEncoder();
 
     // --- Compute density cache ---
-    if (params.twoTimeSlice) {
-      const interval = Math.max(0.02, params.cacheInterval);
-      const t0 = Math.floor(time / interval) * interval;
-      const t1 = t0 + interval;
-      prevCacheTime = t0;
-      nextCacheTime = t1;
-
-      // Cache 0 at t0
-      device.queue.writeBuffer(paramsBuffer, 0, buildParams(t0, 0.0));
-      densityStoreBindGroup = device.createBindGroup({
-        layout: computePipeline.getBindGroupLayout(2),
-        entries: [
-          { binding: 0, resource: densityTextures[0].createView({ dimension: '3d' }) },
-        ],
-      });
-      let pass = commandEncoder.beginComputePass();
-      pass.setPipeline(computePipeline);
-      pass.setBindGroup(0, computeBindGroup);
-      pass.setBindGroup(2, densityStoreBindGroup);
-      const wg = 4;
-      const groups = Math.ceil(densityRes / wg);
-      pass.dispatchWorkgroups(groups, groups, groups);
-      pass.end();
-
-      // Cache 1 at t1
-      device.queue.writeBuffer(paramsBuffer, 0, buildParams(t1, 0.0));
-      densityStoreBindGroup = device.createBindGroup({
-        layout: computePipeline.getBindGroupLayout(2),
-        entries: [
-          { binding: 0, resource: densityTextures[1].createView({ dimension: '3d' }) },
-        ],
-      });
-      pass = commandEncoder.beginComputePass();
-      pass.setPipeline(computePipeline);
-      pass.setBindGroup(0, computeBindGroup);
-      pass.setBindGroup(2, densityStoreBindGroup);
-      pass.dispatchWorkgroups(groups, groups, groups);
-      pass.end();
-
-      // Restore render params for this frame
-      device.queue.writeBuffer(paramsBuffer, 0, buildParams(time, cacheBlend));
-    } else if (frameIndex % params.cacheUpdateRate === 0) {
+    if (frameIndex % params.cacheUpdateRate === 0) {
       prevCacheTime = nextCacheTime;
       nextCacheTime = time;
       cacheIndex = 1 - cacheIndex;
@@ -418,9 +373,7 @@ async function initWebGPU() {
       pass.setPipeline(computePipeline);
       pass.setBindGroup(0, computeBindGroup);
       pass.setBindGroup(2, densityStoreBindGroup);
-      const wg = 4;
-      const groups = Math.ceil(densityRes / wg);
-      pass.dispatchWorkgroups(groups, groups, groups);
+      pass.dispatchWorkgroups(Math.ceil(densityRes / 8), Math.ceil(densityRes / 8), Math.ceil(densityRes / 4));
       pass.end();
     }
     const textureView = context.getCurrentTexture().createView();

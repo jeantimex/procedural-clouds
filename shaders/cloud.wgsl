@@ -237,7 +237,7 @@ fn fs(@builtin(position) fragCoord : vec4f, @location(0) uv : vec2f) -> @locatio
 // Density Cache Compute
 // ============================================================
 
-@compute @workgroup_size(4, 4, 4)
+@compute @workgroup_size(8, 8, 4)
 fn cs(@builtin(global_invocation_id) gid : vec3u) {
   let dims = textureDimensions(densityStore);
   if (gid.x >= dims.x || gid.y >= dims.y || gid.z >= dims.z) { return; }
