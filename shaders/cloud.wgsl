@@ -12,7 +12,7 @@ struct Params {
   time_pack   : vec4f, // timeNoise, timeVoronoi1, timeVoronoi2, density
   alt_pack    : vec4f, // lowAltDensity, altitude, factorMacro, factorDetail
   scale_pack  : vec4f, // factorShaper, scaleAlt, scaleNoise, scaleVoronoi1
-  extra_pack  : vec4f, // scaleVoronoi2, detail, fastMode, _pad1
+  extra_pack  : vec4f, // scaleVoronoi2, detail, fastMode, skipLight
 };
 
 @group(0) @binding(0) var<uniform> camera : Camera;
@@ -183,6 +183,7 @@ fn interleavedGradientNoise(uv: vec2f) -> f32 {
 @fragment
 fn fs(@builtin(position) fragCoord : vec4f, @location(0) uv : vec2f) -> @location(0) vec4f {
   let fastMode = params.extra_pack.z > 0.5;
+  let skipLight = params.extra_pack.w > 0.5;
   let numSteps = select(NUM_STEPS_ACCURATE, NUM_STEPS_FAST, fastMode);
   let world_near = camera.invViewProj * vec4f(uv, 0.0, 1.0);
   let world_far  = camera.invViewProj * vec4f(uv, 1.0, 1.0);
@@ -212,7 +213,8 @@ fn fs(@builtin(position) fragCoord : vec4f, @location(0) uv : vec2f) -> @locatio
       let d = cloudDensity(pos, false);
       if (d > 0.01) {
         let step_trans = exp(-d * stepSize);
-        let scattering = lightMarch(pos) * phase * (1.0 - exp(-d * 1.0));
+        let shadow = select(lightMarch(pos), 1.0, skipLight);
+        let scattering = shadow * phase * (1.0 - exp(-d * 1.0));
         let litColor = SUN_COLOR * scattering * 3.5 + AMBIENT * 0.5;
 
         color += transmittance * (1.0 - step_trans) * litColor;
