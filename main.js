@@ -266,10 +266,10 @@ async function initWebGPU() {
     altitude: 0.5,
     detail: 1.0,
     windSpeed: 0.05,
-    skipLight: true,
+    skipLight: false,
     cacheResolution: 96,
-    cacheUpdateRate: 1,
-    cacheSmooth: 0.7,
+    cacheUpdateRate: 2,
+    cacheSmooth: 0,
   };
 
   const gui = new GUI({ title: 'Cloud Parameters' });
