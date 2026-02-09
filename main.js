@@ -148,9 +148,9 @@ async function initWebGPU() {
   });
 
   // --- Params uniform buffer ---
-  // Layout: 4 x vec4f = 64 bytes
+  // Layout: 5 x vec4f = 80 bytes
   const paramsBuffer = device.createBuffer({
-    size: 64,
+    size: 80,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
 
@@ -171,31 +171,34 @@ async function initWebGPU() {
     addressModeW: 'clamp-to-edge',
   });
   let densityRes = 96;
-  let densityTexture = null;
+  let densityTextures = [null, null];
   let densitySampleBindGroup = null;
   let densityStoreBindGroup = null;
 
   function createDensityResources(res) {
-    if (densityTexture) densityTexture.destroy();
-    densityTexture = device.createTexture({
+    for (const t of densityTextures) {
+      if (t) t.destroy();
+    }
+    densityTextures = [0, 1].map(() => device.createTexture({
       size: [res, res, res],
       dimension: '3d',
       format: 'rgba16float',
       usage: GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING,
-    });
+    }));
 
     densitySampleBindGroup = device.createBindGroup({
       layout: pipeline.getBindGroupLayout(1),
       entries: [
         { binding: 0, resource: densitySampler },
-        { binding: 1, resource: densityTexture.createView({ dimension: '3d' }) },
+        { binding: 1, resource: densityTextures[0].createView({ dimension: '3d' }) },
+        { binding: 2, resource: densityTextures[1].createView({ dimension: '3d' }) },
       ],
     });
 
     densityStoreBindGroup = device.createBindGroup({
       layout: computePipeline.getBindGroupLayout(2),
       entries: [
-        { binding: 0, resource: densityTexture.createView({ dimension: '3d' }) },
+        { binding: 0, resource: densityTextures[0].createView({ dimension: '3d' }) },
       ],
     });
   }
@@ -266,6 +269,9 @@ async function initWebGPU() {
     skipLight: true,
     cacheResolution: 96,
     cacheUpdateRate: 1,
+    cacheSmooth: 0.7,
+    twoTimeSlice: true,
+    cacheInterval: 0.1,
   };
 
   const gui = new GUI({ title: 'Cloud Parameters' });
@@ -284,11 +290,33 @@ async function initWebGPU() {
     createDensityResources(densityRes);
   });
   gui.add(params, 'cacheUpdateRate', 1, 4, 1).name('Cache Update');
+  gui.add(params, 'cacheSmooth', 0.0, 0.95, 0.01).name('Cache Smooth');
+  gui.add(params, 'twoTimeSlice').name('Two-Time Slice');
+  gui.add(params, 'cacheInterval', 0.02, 0.5, 0.01).name('Cache Interval');
 
   // --- Render loop ---
   const startTime = performance.now();
 
   let frameIndex = 0;
+  let cacheIndex = 0;
+  let prevCacheTime = 0.0;
+  let nextCacheTime = 0.0;
+
+  function buildParams(time, cacheBlend) {
+    const density = params.density;
+    const altitude = params.altitude;
+    const factorMacro = params.coverage;
+    const scale = params.scale;
+    const detail = params.detail;
+
+    return new Float32Array([
+      time, time, time, density,
+      0.2, altitude, factorMacro, 1.0,
+      1.0, scale, scale, scale,
+      scale, detail, params.performance ? 1.0 : 0.0, params.skipLight ? 1.0 : 0.0,
+      cacheBlend, 0.0, 0.0, 0.0
+    ]);
+  }
   function frame() {
     resize();
     frameIndex++;
@@ -317,24 +345,71 @@ async function initWebGPU() {
 
     // Sync params with UI
     const time = elapsed * windSpeed;
-    const density = params.density;
-    const altitude = params.altitude;
-    const factorMacro = params.coverage;
-    const scale = params.scale;
-    const detail = params.detail;
+    const blendDenom = Math.max(1e-5, nextCacheTime - prevCacheTime);
+    const linearBlend = Math.min(1.0, Math.max(0.0, (time - prevCacheTime) / blendDenom));
+    let cacheBlend = linearBlend;
+    if (params.cacheSmooth > 0.0) {
+      cacheBlend = Math.pow(linearBlend, 1.0 / (1.0 + params.cacheSmooth * 4.0));
+    }
 
-    const paramsData = new Float32Array([
-      time, time, time, density,
-      0.2, altitude, factorMacro, 1.0,
-      1.0, scale, scale, scale,
-      scale, detail, params.performance ? 1.0 : 0.0, params.skipLight ? 1.0 : 0.0
-    ]);
-    device.queue.writeBuffer(paramsBuffer, 0, paramsData);
+    device.queue.writeBuffer(paramsBuffer, 0, buildParams(time, cacheBlend));
 
     const commandEncoder = device.createCommandEncoder();
 
     // --- Compute density cache ---
-    if (frameIndex % params.cacheUpdateRate === 0) {
+    if (params.twoTimeSlice) {
+      const interval = Math.max(0.02, params.cacheInterval);
+      const t0 = Math.floor(time / interval) * interval;
+      const t1 = t0 + interval;
+      prevCacheTime = t0;
+      nextCacheTime = t1;
+
+      // Cache 0 at t0
+      device.queue.writeBuffer(paramsBuffer, 0, buildParams(t0, 0.0));
+      densityStoreBindGroup = device.createBindGroup({
+        layout: computePipeline.getBindGroupLayout(2),
+        entries: [
+          { binding: 0, resource: densityTextures[0].createView({ dimension: '3d' }) },
+        ],
+      });
+      let pass = commandEncoder.beginComputePass();
+      pass.setPipeline(computePipeline);
+      pass.setBindGroup(0, computeBindGroup);
+      pass.setBindGroup(2, densityStoreBindGroup);
+      const wg = 4;
+      const groups = Math.ceil(densityRes / wg);
+      pass.dispatchWorkgroups(groups, groups, groups);
+      pass.end();
+
+      // Cache 1 at t1
+      device.queue.writeBuffer(paramsBuffer, 0, buildParams(t1, 0.0));
+      densityStoreBindGroup = device.createBindGroup({
+        layout: computePipeline.getBindGroupLayout(2),
+        entries: [
+          { binding: 0, resource: densityTextures[1].createView({ dimension: '3d' }) },
+        ],
+      });
+      pass = commandEncoder.beginComputePass();
+      pass.setPipeline(computePipeline);
+      pass.setBindGroup(0, computeBindGroup);
+      pass.setBindGroup(2, densityStoreBindGroup);
+      pass.dispatchWorkgroups(groups, groups, groups);
+      pass.end();
+
+      // Restore render params for this frame
+      device.queue.writeBuffer(paramsBuffer, 0, buildParams(time, cacheBlend));
+    } else if (frameIndex % params.cacheUpdateRate === 0) {
+      prevCacheTime = nextCacheTime;
+      nextCacheTime = time;
+      cacheIndex = 1 - cacheIndex;
+
+      densityStoreBindGroup = device.createBindGroup({
+        layout: computePipeline.getBindGroupLayout(2),
+        entries: [
+          { binding: 0, resource: densityTextures[cacheIndex].createView({ dimension: '3d' }) },
+        ],
+      });
+
       const pass = commandEncoder.beginComputePass();
       pass.setPipeline(computePipeline);
       pass.setBindGroup(0, computeBindGroup);

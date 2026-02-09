@@ -13,12 +13,14 @@ struct Params {
   alt_pack    : vec4f, // lowAltDensity, altitude, factorMacro, factorDetail
   scale_pack  : vec4f, // factorShaper, scaleAlt, scaleNoise, scaleVoronoi1
   extra_pack  : vec4f, // scaleVoronoi2, detail, fastMode, skipLight
+  cache_pack  : vec4f, // cacheBlend, _pad0, _pad1, _pad2
 };
 
 @group(0) @binding(0) var<uniform> camera : Camera;
 @group(0) @binding(1) var<uniform> params : Params;
 @group(1) @binding(0) var densitySampler : sampler;
-@group(1) @binding(1) var densityTex : texture_3d<f32>;
+@group(1) @binding(1) var densityTex0 : texture_3d<f32>;
+@group(1) @binding(2) var densityTex1 : texture_3d<f32>;
 @group(2) @binding(0) var densityStore : texture_storage_3d<rgba16float, write>;
 
 // ============================================================
@@ -58,7 +60,10 @@ fn sampleDensity(pos: vec3f) -> f32 {
   if (any(uvw < vec3f(0.0)) || any(uvw > vec3f(1.0))) {
     return 0.0;
   }
-  return textureSampleLevel(densityTex, densitySampler, uvw, 0.0).r;
+  let a = textureSampleLevel(densityTex0, densitySampler, uvw, 0.0).r;
+  let b = textureSampleLevel(densityTex1, densitySampler, uvw, 0.0).r;
+  let blend = clamp(params.cache_pack.x, 0.0, 1.0);
+  return mix(a, b, blend);
 }
 
 // ------------------------------------------------------------
