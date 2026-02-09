@@ -1,5 +1,6 @@
 import cloudSource from './shaders/cloud.wgsl?raw';
 import noiseSource from './shaders/noise.wgsl?raw';
+import GUI from 'lil-gui';
 
 const shaderSource = noiseSource + cloudSource;
 
@@ -197,39 +198,23 @@ async function initWebGPU() {
   window.addEventListener('resize', resize);
   resize();
 
-  // --- UI Controls ---
-  const controls = {
-    density: document.getElementById('density'),
-    coverage: document.getElementById('coverage'),
-    scale: document.getElementById('scale'),
-    altitude: document.getElementById('altitude'),
-    detail: document.getElementById('detail'),
-    windSpeed: document.getElementById('windSpeed'),
+  // --- UI Controls (lil-gui) ---
+  const params = {
+    density: 1.0,
+    coverage: 0.8,
+    scale: 3.75,
+    altitude: 0.5,
+    detail: 1.0,
+    windSpeed: 0.0,
   };
 
-  const values = {
-    density: document.getElementById('v-density'),
-    coverage: document.getElementById('v-coverage'),
-    scale: document.getElementById('v-scale'),
-    altitude: document.getElementById('v-altitude'),
-    detail: document.getElementById('v-detail'),
-    windSpeed: document.getElementById('v-windSpeed'),
-  };
-
-  // Set better defaults on sliders
-  controls.density.value = 1.0;
-  controls.coverage.value = 0.8;
-  controls.scale.value = 3.0;
-  controls.altitude.value = 0.5;
-  controls.detail.value = 1.0;
-  controls.windSpeed.value = 0.0;
-
-  Object.keys(controls).forEach(key => {
-    controls[key].addEventListener('input', () => {
-      values[key].textContent = parseFloat(controls[key].value).toFixed(2);
-    });
-    values[key].textContent = parseFloat(controls[key].value).toFixed(2);
-  });
+  const gui = new GUI({ title: 'Cloud Parameters' });
+  gui.add(params, 'density', 0.1, 4.0, 0.05);
+  gui.add(params, 'coverage', 0.0, 1.0, 0.01);
+  gui.add(params, 'scale', 0.2, 4.0, 0.05);
+  gui.add(params, 'altitude', 0.1, 1.0, 0.01);
+  gui.add(params, 'detail', 0.0, 15.0, 0.5);
+  gui.add(params, 'windSpeed', 0.0, 2.0, 0.05);
 
   // --- Render loop ---
   const startTime = performance.now();
@@ -238,7 +223,7 @@ async function initWebGPU() {
     resize();
 
     const elapsed = (performance.now() - startTime) / 1000.0;
-    const windSpeed = parseFloat(controls.windSpeed.value);
+    const windSpeed = params.windSpeed;
 
     // Orbit camera
     const eye = [
@@ -261,11 +246,11 @@ async function initWebGPU() {
 
     // Sync params with UI
     const time = elapsed * windSpeed;
-    const density = parseFloat(controls.density.value);
-    const altitude = parseFloat(controls.altitude.value);
-    const factorMacro = parseFloat(controls.coverage.value);
-    const scale = parseFloat(controls.scale.value);
-    const detail = parseFloat(controls.detail.value);
+    const density = params.density;
+    const altitude = params.altitude;
+    const factorMacro = params.coverage;
+    const scale = params.scale;
+    const detail = params.detail;
 
     const paramsData = new Float32Array([
       time, time, time, density,

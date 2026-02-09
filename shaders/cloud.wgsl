@@ -145,8 +145,8 @@ fn intersectBox(ro : vec3f, rd : vec3f) -> HitInfo {
 
 const SUN_DIR   = vec3f(0.189, 0.943, 0.283); 
 const SUN_COLOR = vec3f(1.0, 1.0, 1.0);
-const AMBIENT   = vec3f(0.22, 0.26, 0.38);
-const BG_COLOR  = vec3f(0.075, 0.145, 0.25);
+const AMBIENT   = vec3f(0.26, 0.30, 0.42);
+const BG_COLOR  = vec3f(0.045, 0.10, 0.18);
 const NUM_STEPS = 48; 
 
 fn hgPhase(cosTheta: f32, g: f32) -> f32 {
