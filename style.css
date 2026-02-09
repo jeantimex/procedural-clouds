@@ -21,64 +21,6 @@ canvas {
   height: 100%;
 }
 
-#controls {
-  position: fixed;
-  top: 20px;
-  right: 20px;
-  background: rgba(10, 10, 15, 0.85);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 14px;
-  padding: 20px 24px;
-  width: 280px;
-  z-index: 10;
-}
-
-#controls h2 {
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: rgba(255,255,255,0.5);
-  margin-bottom: 16px;
-}
-
-.ctrl-group {
-  margin-bottom: 14px;
-}
-
-.ctrl-group label {
-  display: flex;
-  justify-content: space-between;
-  font-size: 12px;
-  color: rgba(255,255,255,0.65);
-  margin-bottom: 5px;
-}
-
-.ctrl-group label span {
-  color: rgba(255,255,255,0.35);
-  font-variant-numeric: tabular-nums;
-}
-
-input[type="range"] {
-  -webkit-appearance: none;
-  width: 100%;
-  height: 4px;
-  border-radius: 2px;
-  background: rgba(255,255,255,0.1);
-  outline: none;
-}
-
-input[type="range"]::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  background: #7eb8da;
-  cursor: pointer;
-  border: 2px solid rgba(0,0,0,0.3);
-}
-
 #info {
   position: fixed;
   bottom: 20px;
