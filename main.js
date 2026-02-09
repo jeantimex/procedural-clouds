@@ -163,14 +163,6 @@ async function initWebGPU() {
   });
 
   // --- Density cache texture ---
-  const DENSITY_RES = 64;
-  const densityTexture = device.createTexture({
-    size: [DENSITY_RES, DENSITY_RES, DENSITY_RES],
-    dimension: '3d',
-    format: 'rgba16float',
-    usage: GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING,
-  });
-
   const densitySampler = device.createSampler({
     magFilter: 'linear',
     minFilter: 'linear',
@@ -178,21 +170,37 @@ async function initWebGPU() {
     addressModeV: 'clamp-to-edge',
     addressModeW: 'clamp-to-edge',
   });
+  let densityRes = 96;
+  let densityTexture = null;
+  let densitySampleBindGroup = null;
+  let densityStoreBindGroup = null;
 
-  const densitySampleBindGroup = device.createBindGroup({
-    layout: pipeline.getBindGroupLayout(1),
-    entries: [
-      { binding: 0, resource: densitySampler },
-      { binding: 1, resource: densityTexture.createView({ dimension: '3d' }) },
-    ],
-  });
+  function createDensityResources(res) {
+    if (densityTexture) densityTexture.destroy();
+    densityTexture = device.createTexture({
+      size: [res, res, res],
+      dimension: '3d',
+      format: 'rgba16float',
+      usage: GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING,
+    });
 
-  const densityStoreBindGroup = device.createBindGroup({
-    layout: computePipeline.getBindGroupLayout(2),
-    entries: [
-      { binding: 0, resource: densityTexture.createView({ dimension: '3d' }) },
-    ],
-  });
+    densitySampleBindGroup = device.createBindGroup({
+      layout: pipeline.getBindGroupLayout(1),
+      entries: [
+        { binding: 0, resource: densitySampler },
+        { binding: 1, resource: densityTexture.createView({ dimension: '3d' }) },
+      ],
+    });
+
+    densityStoreBindGroup = device.createBindGroup({
+      layout: computePipeline.getBindGroupLayout(2),
+      entries: [
+        { binding: 0, resource: densityTexture.createView({ dimension: '3d' }) },
+      ],
+    });
+  }
+
+  createDensityResources(densityRes);
 
   const computeBindGroup = device.createBindGroup({
     layout: computePipeline.getBindGroupLayout(0),
@@ -256,6 +264,8 @@ async function initWebGPU() {
     windSpeed: 0.0,
     performance: true,
     skipLight: true,
+    cacheResolution: 96,
+    cacheUpdateRate: 1,
   };
 
   const gui = new GUI({ title: 'Cloud Parameters' });
@@ -267,12 +277,21 @@ async function initWebGPU() {
   gui.add(params, 'windSpeed', 0.0, 2.0, 0.05);
   gui.add(params, 'performance').name('Performance Mode');
   gui.add(params, 'skipLight').name('Skip Light March');
+  gui.add(params, 'cacheResolution', 32, 128, 1).name('Cache Res').onFinishChange(v => {
+    const next = Math.max(32, Math.min(128, Math.round(v)));
+    params.cacheResolution = next;
+    densityRes = next;
+    createDensityResources(densityRes);
+  });
+  gui.add(params, 'cacheUpdateRate', 1, 4, 1).name('Cache Update');
 
   // --- Render loop ---
   const startTime = performance.now();
 
+  let frameIndex = 0;
   function frame() {
     resize();
+    frameIndex++;
 
     const elapsed = (performance.now() - startTime) / 1000.0;
     const windSpeed = params.windSpeed;
@@ -315,13 +334,13 @@ async function initWebGPU() {
     const commandEncoder = device.createCommandEncoder();
 
     // --- Compute density cache ---
-    {
+    if (frameIndex % params.cacheUpdateRate === 0) {
       const pass = commandEncoder.beginComputePass();
       pass.setPipeline(computePipeline);
       pass.setBindGroup(0, computeBindGroup);
       pass.setBindGroup(2, densityStoreBindGroup);
       const wg = 4;
-      const groups = Math.ceil(DENSITY_RES / wg);
+      const groups = Math.ceil(densityRes / wg);
       pass.dispatchWorkgroups(groups, groups, groups);
       pass.end();
     }
