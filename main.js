@@ -318,7 +318,6 @@ async function initWebGPU() {
 
   function frame() {
     stats.begin();
-    resize();
     frameIndex++;
 
     const elapsed = (performance.now() - startTime) / 1000.0;
